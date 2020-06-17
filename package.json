@@ -1,0 +1,19 @@
+{
+  "name": "auth-proxy",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "rhangai <hangai.renan@gmail.com>",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "fastify": "^2.14.1"
+  },
+  "devDependencies": {
+    "@types/node": "^14.0.13",
+    "ts-node": "^8.10.2",
+    "typescript": "^3.9.5"
+  }
+}
