@@ -1,9 +1,12 @@
-import got from 'got';
+import got, { OptionsOfJSONResponseBody } from 'got';
 import { URL } from 'url';
-import { Provider } from './provider';
+import { Provider, ProviderTokenSet } from './provider';
+import JWK from 'jwks-rsa';
+// @ts-ignore
+import jwt from 'jsonwebtoken';
 
 export type ProviderOpenIdConfig = {
-	provider: 'openid-connect';
+	provider: 'oidc';
 	providerClientId: string;
 	providerClientSecret: string;
 	providerAuthUrl: string;
@@ -11,16 +14,22 @@ export type ProviderOpenIdConfig = {
 	providerValidateUrl: string;
 	providerUserinfoUrl: string;
 	providerRedirectUrl: string;
+	providerJwksUrl: string;
 };
 
 /**
- * Application class
+ * OpenID provider
  */
 export class ProviderOpenId implements Provider {
-	/// Construct the application
-	constructor(private readonly config: ProviderOpenIdConfig) {}
-	grant(form: Record<string, string>): unknown {
-		throw new Error('Method not implemented.');
+	private readonly jkwsClient?: JWK.JwksClient;
+
+	/// Construct the provider
+	constructor(private readonly config: ProviderOpenIdConfig) {
+		if (config.providerJwksUrl) {
+			this.jkwsClient = JWK({
+				jwksUri: this.config.providerJwksUrl,
+			});
+		}
 	}
 
 	/**
@@ -43,38 +52,45 @@ export class ProviderOpenId implements Provider {
 	 * @param request
 	 * @param reply
 	 */
-	async grantAuthorizationCode(form: Record<string, string>) {
-		const { body } = await got.post({
-			responseType: 'json',
-			url: this.config.providerTokenUrl,
-			form: {
-				grant_type: 'authorization_code',
-				client_id: this.config.providerClientId,
-				client_secret: this.config.providerClientSecret,
-				redirect_uri: this.config.providerRedirectUrl,
-				...form,
-			},
+	grantAuthorizationCode(form: Record<string, string>): Promise<ProviderTokenSet | null> {
+		return this.grant({
+			grant_type: 'authorization_code',
+			client_id: this.config.providerClientId,
+			client_secret: this.config.providerClientSecret,
+			redirect_uri: this.config.providerRedirectUrl,
+			...form,
 		});
-		return body;
+	}
+
+	grantRefreshToken(form: Record<string, string>): Promise<ProviderTokenSet | null> {
+		return this.grant({
+			grant_type: 'refresh_token',
+			client_id: this.config.providerClientId,
+			client_secret: this.config.providerClientSecret,
+			...form,
+		});
 	}
 
 	/**
-	 * Perform the callback on the login form.
-	 * @param request
-	 * @param reply
+	 * Perform a generic grant
+	 * @param form The form to perform the grant
 	 */
-	async grantRefreshToken(form: Record<string, string>) {
-		const { body } = await got.post({
-			responseType: 'json',
+	private async grant(form: Record<string, string>): Promise<ProviderTokenSet | null> {
+		const body = await this.request({
+			method: 'post',
 			url: this.config.providerTokenUrl,
 			form: {
-				grant_type: 'refresh_token',
-				client_id: this.config.providerClientId,
-				client_secret: this.config.providerClientSecret,
 				...form,
 			},
 		});
-		return body;
+		if (!body) return null;
+		const expiresAt: Date | undefined = body.expires_in ? new Date(Date.now() + body.expires_in * 1000) : undefined;
+		return {
+			accessToken: body.access_token,
+			refreshToken: body.refresh_token,
+			expiresAt,
+			idToken: (await this.idTokenDecode(body.id_token)) ?? undefined,
+		};
 	}
 
 	/**
@@ -84,22 +100,63 @@ export class ProviderOpenId implements Provider {
 		if (!accessToken) {
 			return null;
 		}
+		return this.request({
+			method: 'GET',
+			url: this.config.providerUserinfoUrl,
+			headers: {
+				authorization: `bearer ${accessToken}`,
+			},
+		});
+	}
+
+	/**
+	 * Perform a json request on the openid provider
+	 */
+	private async request(
+		options: Omit<OptionsOfJSONResponseBody, 'responseType'>
+	): Promise<Record<string, any> | null> {
 		try {
-			const { body } = await got.get({
+			const { body } = await got({
 				responseType: 'json',
-				url: this.config.providerUserinfoUrl,
-				headers: {
-					authorization: `bearer ${accessToken}`,
-				},
+				...options,
 			});
-			return body;
+			return body as any;
 		} catch (err) {
-			if (err.response.statusCode === 401) {
-				return null;
-			} else if (err.response.statusCode === 400) {
-				return null;
+			if (err.response) {
+				if (err.response.statusCode === 401) {
+					return null;
+				} else if (err.response.statusCode === 400) {
+					return null;
+				}
 			}
 			throw err;
 		}
+	}
+	/**
+	 * Perform a json request on the openid provider
+	 */
+	private idTokenDecode(idToken: string): Promise<Record<string, any> | null> | null {
+		if (!idToken) {
+			return null;
+		}
+		const promise = new Promise<Record<string, any> | null>((resolve, reject) => {
+			if (!this.jkwsClient) {
+				resolve(jwt.decode(idToken));
+				return;
+			}
+			const getKey = (header: any, callback: any) => {
+				this.jkwsClient!.getSigningKey(header.kid, (err, key) => {
+					if (err) {
+						callback(err);
+						return;
+					}
+					callback(null, key.getPublicKey());
+				});
+			};
+			jwt.verify(idToken, getKey, {}, (err: any, decoded: any) => {
+				err ? reject(err) : resolve(decoded);
+			});
+		});
+		return promise.catch(() => null);
 	}
 }

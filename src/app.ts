@@ -5,13 +5,14 @@ import fs from 'fs';
 import path from 'path';
 import toml from 'toml';
 import { Crypto } from './crypto';
-import { Provider, ProviderConfig } from './provider/provider';
+import { Provider, ProviderConfig, ProviderTokenSet } from './provider/provider';
 import { ProviderOpenId } from './provider/openid';
 import { FastifyCookieOptions } from 'fastify-cookie';
+// @ts-ignore
+import cookie from 'cookie';
 
 type Request = Fastify.FastifyRequest;
 type Reply = Fastify.FastifyReply<import('http').ServerResponse>;
-
 export type Config = {
 	port: number;
 	cookieSecret: string;
@@ -41,7 +42,8 @@ export class App {
 		this.fastify.register(require('fastify-cookie'));
 		this.fastify.get('/login', this.login.bind(this));
 		this.fastify.get('/callback', this.loginCallback.bind(this));
-		this.fastify.get('/auth', this.auth.bind(this));
+		this.fastify.get('/auth/validate', this.authValidate.bind(this));
+		this.fastify.get('/auth/callback', this.authCallback.bind(this));
 		this.cryptoCookie = new Crypto('oi');
 		this.provider = new ProviderOpenId(this.config);
 	}
@@ -62,13 +64,14 @@ export class App {
 	 * @param reply
 	 */
 	private async loginCallback(request: Request, reply: Reply) {
-		const data: any = await this.provider.grantAuthorizationCode({
+		const tokenSet = await this.provider.grantAuthorizationCode({
 			code: request.query.code,
 		});
-		await this.setCookie(reply, this.config.cookieAccessTokenName, data.access_token, {
-			expires: data.expires_in ? new Date(Date.now() + data.expires_in * 1000) : undefined,
-		});
-		await this.setCookie(reply, this.config.cookieRefreshTokenName, data.refresh_token ?? null);
+		if (!tokenSet) {
+			this.cookieClear(reply);
+			return reply.status(401).send('401 Unauthorized');
+		}
+		await this.cookieSetFromTokenSet(reply, tokenSet);
 		return reply.redirect(this.config.providerRedirectUrl);
 	}
 
@@ -77,46 +80,71 @@ export class App {
 	 * @param request
 	 * @param reply
 	 */
-	private async auth(request: Request, reply: Reply) {
-		const userinfo = await this.userinfoRefresh(request, reply);
-		if (!userinfo) {
+	private async authValidate(request: Request, reply: Reply) {
+		const result = await this.userinfoRefresh(request);
+		if (!result) {
+			this.cookieClear(reply);
 			return reply.status(401).send('401 Unauthorized');
 		}
-		reply.header('x-auth-userinfo', JSON.stringify(userinfo));
+		if (result.tokenSet) {
+			await this.cookieSetFromTokenSet(reply, result.tokenSet);
+			if (result.tokenSet.idToken) {
+				reply.header('x-auth-id-token', JSON.stringify(result.tokenSet.idToken));
+			}
+		}
+		reply.header('x-auth-userinfo', JSON.stringify(result.userinfo));
 		return '200 OK';
 	}
-
+	/**
+	 * Perform the callback on the login form.
+	 * @param request
+	 * @param reply
+	 */
+	private async authCallback(request: Request, reply: Reply) {
+		const tokenSet = await this.provider.grantAuthorizationCode({
+			code: request.query.code,
+		});
+		if (!tokenSet) {
+			return reply.status(401).send('401 Unauthorized');
+		}
+		const cookieAccessToken = '';
+		if (tokenSet.idToken) {
+			reply.header('x-auth-id-token', JSON.stringify(tokenSet.idToken));
+		}
+		reply.header('x-auth-redirect', this.config.providerRedirectUrl);
+		return '200 OK';
+	}
 	/**
 	 * Get the userinfo from the request/reply object and refresh if needed
 	 */
-	private async userinfoRefresh(request: Request, reply: Reply) {
-		const accessToken = await this.getCookie(request, this.config.cookieAccessTokenName);
+	private async userinfoRefresh(request: Request) {
+		const accessToken = await this.cookieGet(request, this.config.cookieAccessTokenName);
 		if (accessToken) {
 			const userinfo = await this.provider.userinfo(accessToken);
-			if (userinfo) return userinfo;
+			if (userinfo) return { userinfo };
 		}
 
-		const refreshToken = await this.getCookie(request, this.config.cookieRefreshTokenName);
-		if (refreshToken) {
-			const data: any = await this.provider.grantRefreshToken({
-				refresh_token: refreshToken,
-			});
-
-			await this.setCookie(reply, this.config.cookieAccessTokenName, data.access_token, {
-				expires: data.expires_in ? new Date(Date.now() + data.expires_in * 1000) : undefined,
-			});
-			if (data.refresh_token) {
-				await this.setCookie(reply, this.config.cookieRefreshTokenName, data.refresh_token);
-			}
-			const userinfo = await this.provider.userinfo(data.access_token);
-			return userinfo;
+		const refreshToken = await this.cookieGet(request, this.config.cookieRefreshTokenName);
+		if (!refreshToken) {
+			return null;
 		}
+
+		// Try to refresh the token
+		const tokenSet = await this.provider.grantRefreshToken({
+			refresh_token: refreshToken,
+		});
+		if (!tokenSet) return null;
+
+		// Try to get the userinfo
+		const userinfo = await this.provider.userinfo(tokenSet.accessToken);
+		if (!userinfo) return null;
+		return { userinfo, tokenSet };
 	}
 
 	/**
 	 * Get a cookie from a request.
 	 */
-	private async getCookie(request: Request, cookieName: string): Promise<string | null> {
+	private async cookieGet(request: Request, cookieName: string): Promise<string | null> {
 		const cookieValue = request.cookies[cookieName];
 		if (!cookieValue) {
 			return null;
@@ -131,19 +159,35 @@ export class App {
 	/**
 	 * Get a cookie from a request.
 	 */
-	private async setCookie(
+	private async cookieSet(
 		reply: Reply,
 		cookieName: string,
-		value: string | null,
+		value: string | null | undefined,
 		cookieOptions?: FastifyCookieOptions
 	): Promise<void> {
-		console.log(`Setting cookie ${cookieName} to ${value}`);
 		if (value == null) {
 			reply.clearCookie(cookieName);
 			return;
 		}
 		const cookieValue = await this.cryptoCookie.encrypt(value);
 		reply.setCookie(cookieName, cookieValue, cookieOptions);
+	}
+	/**
+	 * Get the userinfo from the request/reply object and refresh if needed
+	 */
+	private cookieClear(reply: Reply) {
+		reply.clearCookie(this.config.cookieAccessTokenName);
+		reply.clearCookie(this.config.cookieRefreshTokenName);
+	}
+
+	/**
+	 * Get the userinfo from the request/reply object and refresh if needed
+	 */
+	private async cookieSetFromTokenSet(reply: Reply, tokenSet: ProviderTokenSet) {
+		await this.cookieSet(reply, this.config.cookieAccessTokenName, tokenSet.accessToken, {
+			expires: tokenSet.expiresAt,
+		});
+		await this.cookieSet(reply, this.config.cookieRefreshTokenName, tokenSet.refreshToken);
 	}
 
 	/**
