@@ -10,17 +10,14 @@ import { Crypto } from './util/crypto';
 import { Provider, ProviderConfig, ProviderTokenSet } from './provider/provider';
 import { ProviderOpenId } from './provider/openid';
 import { FastifyCookieOptions } from 'fastify-cookie';
+import { Request, Reply } from './http';
+import { CookieConfig } from './util/cookie';
 
-type Request = Fastify.FastifyRequest;
-type Reply = Fastify.FastifyReply<import('http').ServerResponse>;
-
-export type Config = {
-	host: string;
-	port: number;
-	cookieSecret: string;
-	cookieAccessTokenName: string;
-	cookieRefreshTokenName: string;
-} & ProviderConfig;
+export type Config = CookieConfig &
+	ProviderConfig & {
+		host: string;
+		port: number;
+	};
 
 const CONFIG_DEFAULTS: Partial<Config> = {
 	port: 8080,
