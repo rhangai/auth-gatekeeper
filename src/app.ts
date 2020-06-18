@@ -1,30 +1,23 @@
 import Fastify, { FastifyInstance } from 'fastify';
 // @ts-ignore
 import Yargs from 'yargs/yargs';
-import got from 'got';
-import { URL } from 'url';
 import fs from 'fs';
 import path from 'path';
 import toml from 'toml';
 import { Crypto } from './crypto';
-import zlib from 'zlib';
+import { Provider, ProviderConfig } from './provider/provider';
+import { ProviderOpenId } from './provider/openid';
+import { FastifyCookieOptions } from 'fastify-cookie';
 
 type Request = Fastify.FastifyRequest;
 type Reply = Fastify.FastifyReply<import('http').ServerResponse>;
 
-type Config = {
+export type Config = {
 	port: number;
 	cookieSecret: string;
 	cookieAccessTokenName: string;
 	cookieRefreshTokenName: string;
-	providerClientId: string;
-	providerClientSecret: string;
-	providerAuthUrl: string;
-	providerTokenUrl: string;
-	providerValidateUrl: string;
-	providerUserinfoUrl: string;
-	providerRedirectUrl: string;
-};
+} & ProviderConfig;
 
 const CONFIG_DEFAULTS: Partial<Config> = {
 	port: 8080,
@@ -38,7 +31,8 @@ const CONFIG_DEFAULTS: Partial<Config> = {
 export class App {
 	private fastify: FastifyInstance;
 	private readonly config: Config;
-	private cookieCrypto: Crypto;
+	private readonly provider: Provider;
+	private cryptoCookie: Crypto;
 
 	/// Construct the application
 	private constructor(config: Config) {
@@ -48,7 +42,8 @@ export class App {
 		this.fastify.get('/login', this.login.bind(this));
 		this.fastify.get('/callback', this.loginCallback.bind(this));
 		this.fastify.get('/auth', this.auth.bind(this));
-		this.cookieCrypto = new Crypto('oi');
+		this.cryptoCookie = new Crypto('oi');
+		this.provider = new ProviderOpenId(this.config);
 	}
 
 	/**
@@ -57,13 +52,8 @@ export class App {
 	 * @param reply
 	 */
 	private async login(request: Request, reply: Reply) {
-		const url = new URL(this.config.providerAuthUrl);
-		url.searchParams.set('response_type', 'code');
-		url.searchParams.set('client_id', this.config.providerClientId);
-		url.searchParams.set('state', '123456');
-		url.searchParams.set('scope', 'openid email profile');
-		url.searchParams.set('redirect_uri', this.config.providerRedirectUrl);
-		return reply.redirect(url.href);
+		const url = await this.provider.getAuthorizationUrl();
+		return reply.redirect(url);
 	}
 
 	/**
@@ -72,20 +62,13 @@ export class App {
 	 * @param reply
 	 */
 	private async loginCallback(request: Request, reply: Reply) {
-		const { body } = await got.post({
-			responseType: 'json',
-			url: this.config.providerTokenUrl,
-			form: {
-				grant_type: 'authorization_code',
-				code: request.query.code,
-				client_id: this.config.providerClientId,
-				client_secret: this.config.providerClientSecret,
-				redirect_uri: this.config.providerRedirectUrl,
-			},
+		const data: any = await this.provider.grantAuthorizationCode({
+			code: request.query.code,
 		});
-		const data = body as any;
-		const accessToken: string = await this.cookieCrypto.encrypt(data.access_token);
-		reply.setCookie(this.config.cookieAccessTokenName, accessToken);
+		await this.setCookie(reply, this.config.cookieAccessTokenName, data.access_token, {
+			expires: data.expires_in ? new Date(Date.now() + data.expires_in * 1000) : undefined,
+		});
+		await this.setCookie(reply, this.config.cookieRefreshTokenName, data.refresh_token ?? null);
 		return reply.redirect(this.config.providerRedirectUrl);
 	}
 
@@ -95,7 +78,7 @@ export class App {
 	 * @param reply
 	 */
 	private async auth(request: Request, reply: Reply) {
-		const userinfo = await this.userinfoFromRequestReply(request, reply);
+		const userinfo = await this.userinfoRefresh(request, reply);
 		if (!userinfo) {
 			return reply.status(401).send('401 Unauthorized');
 		}
@@ -106,40 +89,61 @@ export class App {
 	/**
 	 * Get the userinfo from the request/reply object and refresh if needed
 	 */
-	private async userinfoFromRequestReply(request: Request, reply: Reply) {
-		const cookieAccessToken = request.cookies[this.config.cookieAccessTokenName];
-		if (!cookieAccessToken) {
-			return null;
+	private async userinfoRefresh(request: Request, reply: Reply) {
+		const accessToken = await this.getCookie(request, this.config.cookieAccessTokenName);
+		if (accessToken) {
+			const userinfo = await this.provider.userinfo(accessToken);
+			if (userinfo) return userinfo;
 		}
-		const accessToken = await this.cookieCrypto.decrypt(cookieAccessToken).catch(() => null);
-		if (!accessToken) {
-			return null;
+
+		const refreshToken = await this.getCookie(request, this.config.cookieRefreshTokenName);
+		if (refreshToken) {
+			const data: any = await this.provider.grantRefreshToken({
+				refresh_token: refreshToken,
+			});
+
+			await this.setCookie(reply, this.config.cookieAccessTokenName, data.access_token, {
+				expires: data.expires_in ? new Date(Date.now() + data.expires_in * 1000) : undefined,
+			});
+			if (data.refresh_token) {
+				await this.setCookie(reply, this.config.cookieRefreshTokenName, data.refresh_token);
+			}
+			const userinfo = await this.provider.userinfo(data.access_token);
+			return userinfo;
 		}
-		return await this.userinfoFromAccessToken(accessToken);
 	}
 
 	/**
-	 * Get the userinfo from the access token
+	 * Get a cookie from a request.
 	 */
-	private async userinfoFromAccessToken(accessToken: string | null) {
-		if (!accessToken) {
+	private async getCookie(request: Request, cookieName: string): Promise<string | null> {
+		const cookieValue = request.cookies[cookieName];
+		if (!cookieValue) {
 			return null;
 		}
-		try {
-			const { body } = await got.get({
-				responseType: 'json',
-				url: this.config.providerUserinfoUrl,
-				headers: {
-					authorization: `bearer ${accessToken}`,
-				},
-			});
-			return body;
-		} catch (err) {
-			if (err.response.statusCode === 401) {
-				return null;
-			}
-			throw err;
+		const value = await this.cryptoCookie.decrypt(cookieValue).catch(() => null);
+		if (!value) {
+			return null;
 		}
+		return value;
+	}
+
+	/**
+	 * Get a cookie from a request.
+	 */
+	private async setCookie(
+		reply: Reply,
+		cookieName: string,
+		value: string | null,
+		cookieOptions?: FastifyCookieOptions
+	): Promise<void> {
+		console.log(`Setting cookie ${cookieName} to ${value}`);
+		if (value == null) {
+			reply.clearCookie(cookieName);
+			return;
+		}
+		const cookieValue = await this.cryptoCookie.encrypt(value);
+		reply.setCookie(cookieName, cookieValue, cookieOptions);
 	}
 
 	/**
@@ -171,9 +175,6 @@ export class App {
 					return toml.parse(fs.readFileSync(filepath, 'utf8'));
 				}
 				throw new Error(`Invalid config file. Expecting JSON or TOML.`);
-			})
-			.option('port', {
-				default: 8080,
 			});
 
 		const app = new App(yargs.argv);
