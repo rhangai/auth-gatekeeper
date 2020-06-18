@@ -14,6 +14,7 @@ import cookie from 'cookie';
 type Request = Fastify.FastifyRequest;
 type Reply = Fastify.FastifyReply<import('http').ServerResponse>;
 export type Config = {
+	host: string;
 	port: number;
 	cookieSecret: string;
 	cookieAccessTokenName: string;
@@ -83,11 +84,13 @@ export class App {
 	private async authValidate(request: Request, reply: Reply) {
 		const result = await this.userinfoRefresh(request);
 		if (!result) {
-			this.cookieClear(reply);
+			const cookies = await this.cookieSerializeClear();
+			cookies.forEach((c, i) => reply.header('x-auth-set-cookie-' + (i + 1), c));
 			return reply.status(401).send('401 Unauthorized');
 		}
 		if (result.tokenSet) {
-			await this.cookieSetFromTokenSet(reply, result.tokenSet);
+			const cookies = await this.cookieSerializeFromTokenSet(result.tokenSet);
+			cookies.forEach((c, i) => reply.header('x-auth-set-cookie-' + (i + 1), c));
 			if (result.tokenSet.idToken) {
 				reply.header('x-auth-id-token', JSON.stringify(result.tokenSet.idToken));
 			}
@@ -104,10 +107,11 @@ export class App {
 		const tokenSet = await this.provider.grantAuthorizationCode({
 			code: request.query.code,
 		});
+		const cookies = await this.cookieSerializeFromTokenSet(tokenSet);
+		cookies.forEach((c, i) => reply.header('x-auth-set-cookie-' + (i + 1), c));
 		if (!tokenSet) {
 			return reply.status(401).send('401 Unauthorized');
 		}
-		const cookieAccessToken = '';
 		if (tokenSet.idToken) {
 			reply.header('x-auth-id-token', JSON.stringify(tokenSet.idToken));
 		}
@@ -144,6 +148,43 @@ export class App {
 	/**
 	 * Get a cookie from a request.
 	 */
+	private async cookieSerialize(
+		cookieName: string,
+		value: string | null | undefined,
+		cookieOptions?: FastifyCookieOptions
+	): Promise<string> {
+		if (value == null) {
+			return cookie.serialize(cookieName, '', { expires: new Date(1), path: '/' });
+		}
+		const cookieValue = await this.cryptoCookie.encrypt(value);
+		return cookie.serialize(cookieName, cookieValue, cookieOptions);
+	}
+	/**
+	 * Clear the cookies
+	 */
+	private async cookieSerializeClear() {
+		return Promise.all([
+			this.cookieSerialize(this.config.cookieAccessTokenName, null),
+			this.cookieSerialize(this.config.cookieRefreshTokenName, null),
+		]);
+	}
+	/**
+	 * Serialize the cookies from the token set
+	 */
+	private cookieSerializeFromTokenSet(tokenSet: ProviderTokenSet | null | undefined) {
+		if (!tokenSet) {
+			return this.cookieSerializeClear();
+		}
+		const cookieAccess = this.cookieSerialize(this.config.cookieAccessTokenName, tokenSet.accessToken, {
+			expires: tokenSet.expiresAt,
+		});
+		const cookieRefresh = this.cookieSerialize(this.config.cookieRefreshTokenName, tokenSet.refreshToken);
+		return Promise.all([cookieAccess, cookieRefresh]);
+	}
+
+	/**
+	 * Get a cookie from the request and pass back
+	 */
 	private async cookieGet(request: Request, cookieName: string): Promise<string | null> {
 		const cookieValue = request.cookies[cookieName];
 		if (!cookieValue) {
@@ -157,37 +198,21 @@ export class App {
 	}
 
 	/**
-	 * Get a cookie from a request.
-	 */
-	private async cookieSet(
-		reply: Reply,
-		cookieName: string,
-		value: string | null | undefined,
-		cookieOptions?: FastifyCookieOptions
-	): Promise<void> {
-		if (value == null) {
-			reply.clearCookie(cookieName);
-			return;
-		}
-		const cookieValue = await this.cryptoCookie.encrypt(value);
-		reply.setCookie(cookieName, cookieValue, cookieOptions);
-	}
-	/**
 	 * Get the userinfo from the request/reply object and refresh if needed
 	 */
-	private cookieClear(reply: Reply) {
-		reply.clearCookie(this.config.cookieAccessTokenName);
-		reply.clearCookie(this.config.cookieRefreshTokenName);
+	private async cookieClear(reply: Reply) {
+		const setCookies = await this.cookieSerializeClear();
+		reply.removeHeader('set-cookie');
+		reply.header('set-cookie', setCookies);
 	}
 
 	/**
-	 * Get the userinfo from the request/reply object and refresh if needed
+	 * Set the cookies from the tokenSet
 	 */
 	private async cookieSetFromTokenSet(reply: Reply, tokenSet: ProviderTokenSet) {
-		await this.cookieSet(reply, this.config.cookieAccessTokenName, tokenSet.accessToken, {
-			expires: tokenSet.expiresAt,
-		});
-		await this.cookieSet(reply, this.config.cookieRefreshTokenName, tokenSet.refreshToken);
+		const setCookies = await this.cookieSerializeFromTokenSet(tokenSet);
+		reply.removeHeader('set-cookie');
+		reply.header('set-cookie', setCookies);
 	}
 
 	/**
@@ -195,7 +220,7 @@ export class App {
 	 */
 	async run() {
 		try {
-			await this.fastify.listen(this.config.port);
+			await this.fastify.listen(this.config.port, this.config.host);
 			this.fastify.log.info(`server listening `, this.fastify.server.address());
 		} catch (err) {
 			this.fastify.log.error(err);
