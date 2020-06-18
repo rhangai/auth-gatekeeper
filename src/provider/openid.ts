@@ -37,11 +37,13 @@ export class ProviderOpenId implements Provider {
 	 * @param request
 	 * @param reply
 	 */
-	async getAuthorizationUrl() {
+	async getAuthorizationUrl(state?: string) {
 		const url = new URL(this.config.providerAuthUrl);
 		url.searchParams.set('response_type', 'code');
 		url.searchParams.set('client_id', this.config.providerClientId);
-		url.searchParams.set('state', '123456');
+		if (state) {
+			url.searchParams.set('state', '123456');
+		}
 		url.searchParams.set('scope', 'openid email profile');
 		url.searchParams.set('redirect_uri', this.config.providerRedirectUrl);
 		return url.href;
@@ -62,6 +64,11 @@ export class ProviderOpenId implements Provider {
 		});
 	}
 
+	/**
+	 * Perform the callback on the login form.
+	 * @param request
+	 * @param reply
+	 */
 	grantRefreshToken(form: Record<string, string>): Promise<ProviderTokenSet | null> {
 		return this.grant({
 			grant_type: 'refresh_token',

@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 
-type AuthCryptoOptions = {
+type CryptoAlgorithmOptions = {
 	cipherAlgorithm: string;
 	ivLength: number;
 	saltLength: number;
@@ -10,10 +10,13 @@ type AuthCryptoOptions = {
 	keyAlgorithm: string;
 };
 
+/**
+ * Crypto class helper to use
+ */
 export class Crypto {
 	private static readonly CRYPTO_DATA_ENCODING = 'utf8';
 	private static readonly CRYPTO_ENCODING = 'base64';
-	private static readonly CRYPTO_OPTIONS: Record<number, AuthCryptoOptions> = {
+	private static readonly CRYPTO_ALGORITHMS: Record<number, CryptoAlgorithmOptions> = {
 		1: {
 			cipherAlgorithm: 'aes-256-gcm',
 			ivLength: 16,
@@ -30,7 +33,7 @@ export class Crypto {
 
 	// Construct the crypto module
 	constructor(private readonly key: string) {
-		const versions = Object.keys(Crypto.CRYPTO_OPTIONS).map((v) => parseInt(v, 10));
+		const versions = Object.keys(Crypto.CRYPTO_ALGORITHMS).map((v) => parseInt(v, 10));
 		this.currentVersion = Math.max(...versions);
 	}
 
@@ -41,8 +44,8 @@ export class Crypto {
 	 */
 	async encrypt(data: string, version?: number) {
 		const optionsVersion = version ?? this.currentVersion;
-		const options = Crypto.CRYPTO_OPTIONS[optionsVersion];
-		if (!options) throw new Error(`Versão invalida da criptografia`);
+		const options = Crypto.CRYPTO_ALGORITHMS[optionsVersion];
+		if (!options) throw new Error(`Invalid crypto algorithm version.`);
 
 		const iv = await Crypto.getRandomBytes(options.ivLength);
 		const salt = await Crypto.getRandomBytes(options.saltLength);
@@ -62,14 +65,14 @@ export class Crypto {
 
 	/**
 	 * Decrypt some data.
-	 * @param token
+	 * @param encrypted The encrypted data.
 	 */
 	async decrypt(encrypted: string): Promise<string> {
 		const encryptedBuffer = Buffer.from(encrypted, Crypto.CRYPTO_ENCODING);
 
 		const optionsVersion = encryptedBuffer[0];
-		const options = Crypto.CRYPTO_OPTIONS[optionsVersion];
-		if (!options) throw new Error(`Versão invalida da criptografia`);
+		const options = Crypto.CRYPTO_ALGORITHMS[optionsVersion];
+		if (!options) throw new Error(`Invalid crypto algorithm version.`);
 
 		const ivOffset = 1;
 		const iv = encryptedBuffer.slice(ivOffset, ivOffset + options.ivLength);
@@ -95,7 +98,7 @@ export class Crypto {
 	}
 
 	/**
-	 * Get the derived key to use as encryption key on the data.
+	 * Get a derived key using pbkdf2
 	 */
 	private getDerivedKey(salt: Buffer, iterations: number, length: number, algorithm: string): Promise<Buffer> {
 		return new Promise<Buffer>((resolve, reject) => {
@@ -106,8 +109,7 @@ export class Crypto {
 	}
 
 	/**
-	 * Pega a chave crypto
-	 * @param salt O sal da chave
+	 * Get a few random bytes
 	 */
 	private static getRandomBytes(size: number): Promise<Buffer> {
 		return new Promise<Buffer>((resolve, reject) => {

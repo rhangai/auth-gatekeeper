@@ -1,18 +1,19 @@
 import Fastify, { FastifyInstance } from 'fastify';
 // @ts-ignore
 import Yargs from 'yargs/yargs';
+// @ts-ignore
+import cookie from 'cookie';
 import fs from 'fs';
 import path from 'path';
 import toml from 'toml';
-import { Crypto } from './crypto';
+import { Crypto } from './util/crypto';
 import { Provider, ProviderConfig, ProviderTokenSet } from './provider/provider';
 import { ProviderOpenId } from './provider/openid';
 import { FastifyCookieOptions } from 'fastify-cookie';
-// @ts-ignore
-import cookie from 'cookie';
 
 type Request = Fastify.FastifyRequest;
 type Reply = Fastify.FastifyReply<import('http').ServerResponse>;
+
 export type Config = {
 	host: string;
 	port: number;
@@ -42,15 +43,15 @@ export class App {
 		this.fastify = Fastify({ logger: true });
 		this.fastify.register(require('fastify-cookie'));
 		this.fastify.get('/login', this.login.bind(this));
-		this.fastify.get('/callback', this.loginCallback.bind(this));
+		this.fastify.get('/login-callback', this.loginCallback.bind(this));
 		this.fastify.get('/auth/validate', this.authValidate.bind(this));
-		this.fastify.get('/auth/callback', this.authCallback.bind(this));
-		this.cryptoCookie = new Crypto('oi');
+		this.fastify.get('/auth/login-callback', this.authLoginCallback.bind(this));
+		this.cryptoCookie = new Crypto(this.config.cookieSecret);
 		this.provider = new ProviderOpenId(this.config);
 	}
 
 	/**
-	 * Perform the login. Redirecting the user to the oauth provider class.
+	 * Start the login flow.
 	 * @param request
 	 * @param reply
 	 */
@@ -60,7 +61,7 @@ export class App {
 	}
 
 	/**
-	 * Perform the callback on the login form.
+	 * Callback when returning from the provider.
 	 * @param request
 	 * @param reply
 	 */
@@ -69,7 +70,7 @@ export class App {
 			code: request.query.code,
 		});
 		if (!tokenSet) {
-			this.cookieClear(reply);
+			await this.cookieClear(reply);
 			return reply.status(401).send('401 Unauthorized');
 		}
 		await this.cookieSetFromTokenSet(reply, tokenSet);
@@ -77,7 +78,7 @@ export class App {
 	}
 
 	/**
-	 * Perform the callback on the login form.
+	 * Validate the current request.
 	 * @param request
 	 * @param reply
 	 */
@@ -99,11 +100,11 @@ export class App {
 		return '200 OK';
 	}
 	/**
-	 * Perform the callback on the login form.
+	 * Login callback, but instead of setting cookies, it sets the x-auth headers to be handled by the upstream.
 	 * @param request
 	 * @param reply
 	 */
-	private async authCallback(request: Request, reply: Reply) {
+	private async authLoginCallback(request: Request, reply: Reply) {
 		const tokenSet = await this.provider.grantAuthorizationCode({
 			code: request.query.code,
 		});
