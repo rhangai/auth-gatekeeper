@@ -4,12 +4,14 @@ import { Request, Reply } from './http';
 import { CookieManager } from './util/cookie';
 import { configParse, Config } from './config';
 import { Api, apiCreate } from './api/api';
+import { StateManager, State } from './state';
 
 /**
  * Application class
  */
 export class App {
-	private fastify: FastifyInstance;
+	private readonly fastify: FastifyInstance;
+	private readonly stateManager: StateManager;
 	private readonly cookieManager: CookieManager;
 	private readonly provider: Provider;
 	private readonly api: Api | null;
@@ -21,6 +23,7 @@ export class App {
 		this.fastify.get('/login', this.routeLogin.bind(this));
 		this.fastify.get('/callback', this.routeCallback.bind(this));
 		this.fastify.get('/validate', this.routeValidate.bind(this));
+		this.stateManager = new StateManager(this.config.cookie.cookieSecret);
 		this.cookieManager = new CookieManager(this.config.cookie);
 		this.provider = providerCreate(this.config.provider);
 		this.api = apiCreate(this.config.api);
@@ -32,7 +35,11 @@ export class App {
 	 * @param reply
 	 */
 	private async routeLogin(request: Request, reply: Reply) {
-		const url = await this.provider.getAuthorizationUrl();
+		const state: State = {
+			url: request.query.url,
+		};
+		const stateToken = await this.stateManager.serialize(state);
+		const url = await this.provider.getAuthorizationUrl(stateToken);
 		return reply.redirect(url);
 	}
 
@@ -42,6 +49,7 @@ export class App {
 	 * @param reply
 	 */
 	private async routeCallback(request: Request, reply: Reply) {
+		const state = await this.stateManager.parse(request.query.state);
 		const tokenSet = await this.provider.grantAuthorizationCode({
 			code: request.query.code,
 		});
@@ -53,7 +61,7 @@ export class App {
 			await this.api?.onIdToken?.(tokenSet.idToken);
 		}
 		await this.cookieManager.setFromTokenSet(reply, tokenSet);
-		return reply.redirect('/');
+		return reply.redirect(state?.url || '/');
 	}
 
 	/**

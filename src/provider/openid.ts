@@ -41,7 +41,7 @@ export class ProviderOpenId implements Provider {
 		url.searchParams.set('response_type', 'code');
 		url.searchParams.set('client_id', this.config.providerClientId);
 		if (state) {
-			url.searchParams.set('state', '123456');
+			url.searchParams.set('state', state);
 		}
 		url.searchParams.set('scope', 'openid email profile');
 		url.searchParams.set('redirect_uri', this.config.providerCallbackUrl);

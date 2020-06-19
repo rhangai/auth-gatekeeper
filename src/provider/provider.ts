@@ -11,7 +11,7 @@ export type ProviderTokenSet = {
 
 export interface Provider {
 	/// Get the authorization url
-	getAuthorizationUrl(): string | Promise<string>;
+	getAuthorizationUrl(state?: string): string | Promise<string>;
 	/**
 	 * Grant an authorization code
 	 * @param form
