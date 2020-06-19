@@ -8,8 +8,7 @@ import { Crypto } from './util/crypto';
 import { ApiConfig } from './api/api';
 
 export type Config = {
-	host: string;
-	port: number;
+	listen: string;
 	cookie: CookieConfig;
 	provider: ProviderConfig;
 	api: ApiConfig;
@@ -63,16 +62,10 @@ export async function configParse(argv: string[]): Promise<Config> {
 				group: 'main',
 				describe: 'Path to the config file',
 			},
-			host: {
+			listen: {
 				group: 'main',
-				describe: 'Host',
+				describe: 'Listen to the following url',
 				default: '',
-			},
-			port: {
-				group: 'main',
-				describe: 'Port',
-				default: 8080,
-				type: 'number',
 			},
 			'cookie-secret': {
 				group: 'cookie',
@@ -154,8 +147,7 @@ export async function configParse(argv: string[]): Promise<Config> {
 
 	const args = yargs.argv;
 	return {
-		host: args.host,
-		port: args.port,
+		listen: args.listen,
 		cookie: {
 			cookieSecret: args['cookie-secret'] || (await Crypto.getRandomBytes(32)).toString('base64'),
 			cookieAccessTokenName: args['cookie-access-token-name'],

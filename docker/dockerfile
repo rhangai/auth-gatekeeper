@@ -1,0 +1,23 @@
+FROM node:14 as build
+WORKDIR /opt/auth-gatekeeper
+COPY ./tsconfig.json ./package.json ./yarn.lock /opt/auth-gatekeeper/
+ADD ./src /opt/auth-gatekeeper/src
+RUN \
+	yarn install && \
+	yarn build && \
+	yarn install --production && \
+	yarn cache clean
+
+FROM nginx
+RUN apt-get update && \ 
+	apt-get install -y curl supervisor && \
+	(curl -sL https://deb.nodesource.com/setup_14.x | bash -) && \
+	apt-get install -y nodejs && \
+	rm -rf /var/lib/apt/lists/*
+
+COPY ./docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY ./docker/auth-gatekeeper etc/nginx/auth-gatekeeper
+COPY --from=build /opt/auth-gatekeeper /opt/auth-gatekeeper
+
+ENV AUTH_GATEKEEPER_LISTEN=unix:/auth-gatekeeper.sock
+CMD ["/usr/bin/supervisord", "-n"]

@@ -1,4 +1,5 @@
 import Fastify, { FastifyInstance } from 'fastify';
+import { URL } from 'url';
 import { Provider, providerCreate } from './provider/provider';
 import { Request, Reply } from './http';
 import { CookieManager } from './util/cookie';
@@ -114,13 +115,32 @@ export class App {
 		return { userinfo, tokenSet };
 	}
 
+	private async listen() {
+		if (!this.config.listen) {
+			await this.fastify.listen(8888);
+			return;
+		}
+
+		const listenUrl = new URL(this.config.listen);
+		if (this.config.listen.startsWith('unix:')) {
+			await this.fastify.listen({
+				path: listenUrl.pathname,
+				readableAll: true,
+				writableAll: true,
+			});
+		} else if (this.config.listen.startsWith('http:')) {
+			await this.fastify.listen(listenUrl.port === '' ? 8888 : +listenUrl.port, listenUrl.hostname);
+		} else {
+			throw new Error(`URL not supported ${this.config.listen}`);
+		}
+	}
+
 	/**
 	 * Run the server
 	 */
 	async run() {
 		try {
-			await this.fastify.listen(this.config.port, this.config.host);
-			this.fastify.log.info(`server listening `, this.fastify.server.address());
+			await this.listen();
 		} catch (err) {
 			this.fastify.log.error(err);
 			throw err;
