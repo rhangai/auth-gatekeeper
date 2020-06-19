@@ -45,7 +45,7 @@ export function configFlattenObject(config: Record<string, any>, parentPath: str
 export async function configParse(argv: string[]): Promise<Config> {
 	// prettier-ignore
 	const yargs = Yargs(argv)
-		.env('AUTH_PROXY')
+		.env('AUTH_GATEKEEPER')
 		.config('config', function (filepath: string) {
 			const ext = path.extname(filepath).toLowerCase();
 			let config: Record<string, any> | null = null;
@@ -135,7 +135,7 @@ export async function configParse(argv: string[]): Promise<Config> {
 				describe: 'JWKs endpoint to validate id_token JWTs',
 				type: 'string',
 			},
-			'api': {
+			api: {
 				group: 'api',
 				describe: 'Type of api communication endpoints. Values allowed [rest]',
 				type: 'string',

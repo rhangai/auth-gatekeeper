@@ -5,8 +5,8 @@ ENV TINI_VERSION v0.19.0
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
 RUN chmod +x /tini
 
-WORKDIR /opt/auth-proxy
-ADD . /opt/auth-proxy
+WORKDIR /opt/auth-gatekeeper
+ADD . /opt/auth-gatekeeper
 RUN \
 	yarn install && \
 	yarn build && \
@@ -14,5 +14,5 @@ RUN \
 	yarn cache clean
 
 
-ENV AUTH_PROXY_HOST=0.0.0.0
-ENTRYPOINT ["/tini", "--", "node", "/opt/auth-proxy/dist/index.js"]
+ENV AUTH_GATEKEEPER_HOST=0.0.0.0
+ENTRYPOINT ["/tini", "--", "node", "/opt/auth-gatekeeper/dist/index.js"]
