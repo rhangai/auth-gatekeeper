@@ -1,6 +1,6 @@
-import { ProviderOpenIdConfig } from './openid';
+import { ProviderOpenIdConfig, ProviderOpenId } from './openid';
 
-export type ProviderConfig = ProviderOpenIdConfig;
+export type ProviderConfig = ProviderOpenIdConfig | Record<string, unknown>;
 
 export type ProviderTokenSet = {
 	accessToken: string;
@@ -27,4 +27,11 @@ export interface Provider {
 	 * @param accessToken
 	 */
 	userinfo(accessToken: string | null): unknown | Promise<unknown>;
+}
+
+export function providerCreate(config: ProviderConfig): Provider {
+	if (config.provider === 'oidc') {
+		return new ProviderOpenId(config as ProviderOpenIdConfig);
+	}
+	throw new Error(`Invalid provider`);
 }

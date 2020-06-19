@@ -5,12 +5,14 @@ import path from 'path';
 import { CookieConfig } from './util/cookie';
 import { ProviderConfig } from './provider/provider';
 import { Crypto } from './util/crypto';
+import { ApiConfig } from './api/api';
 
 export type Config = {
 	host: string;
 	port: number;
 	cookie: CookieConfig;
 	provider: ProviderConfig;
+	api: ApiConfig;
 };
 
 function configSplitCase(config: string): string[] {
@@ -133,6 +135,21 @@ export async function configParse(argv: string[]): Promise<Config> {
 				describe: 'JWKs endpoint to validate id_token JWTs',
 				type: 'string',
 			},
+			'api': {
+				group: 'api',
+				describe: 'Type of api communication endpoints. Values allowed [rest]',
+				type: 'string',
+			},
+			'api-authorization': {
+				group: 'api',
+				describe: 'Authorization bearer value for the api callback',
+				type: 'string',
+			},
+			'api-id-token-endpoint': {
+				group: 'provider',
+				describe: 'Endpoint for id-token on the current api',
+				type: 'string',
+			},
 		});
 
 	const args = yargs.argv;
@@ -153,6 +170,11 @@ export async function configParse(argv: string[]): Promise<Config> {
 			providerUserinfoUrl: args['provider-userinfo-url'],
 			providerCallbackUrl: args['provider-callback-url'],
 			providerJwksUrl: args['provider-jwks-url'],
+		},
+		api: {
+			api: args['api'] as any,
+			apiAuthorization: args['api-authorization'],
+			apiIdTokenEndpoint: args['api-id-token-endpoint'],
 		},
 	};
 }

@@ -1,9 +1,9 @@
 import Fastify, { FastifyInstance } from 'fastify';
-import { Provider } from './provider/provider';
-import { ProviderOpenId } from './provider/openid';
+import { Provider, providerCreate } from './provider/provider';
 import { Request, Reply } from './http';
 import { CookieManager } from './util/cookie';
 import { configParse, Config } from './config';
+import { Api, apiCreate } from './api/api';
 
 /**
  * Application class
@@ -12,6 +12,7 @@ export class App {
 	private fastify: FastifyInstance;
 	private readonly cookieManager: CookieManager;
 	private readonly provider: Provider;
+	private readonly api: Api | null;
 
 	/// Construct the application
 	private constructor(private readonly config: Config) {
@@ -21,7 +22,8 @@ export class App {
 		this.fastify.get('/callback', this.routeCallback.bind(this));
 		this.fastify.get('/validate', this.routeValidate.bind(this));
 		this.cookieManager = new CookieManager(this.config.cookie);
-		this.provider = new ProviderOpenId(this.config.provider);
+		this.provider = providerCreate(this.config.provider);
+		this.api = apiCreate(this.config.api);
 	}
 
 	/**
@@ -47,6 +49,9 @@ export class App {
 			await this.cookieManager.clear(reply);
 			return reply.status(401).send('401 Unauthorized');
 		}
+		if (tokenSet.idToken) {
+			await this.api?.onIdToken?.(tokenSet.idToken);
+		}
 		await this.cookieManager.setFromTokenSet(reply, tokenSet);
 		return reply.redirect('/');
 	}
@@ -67,6 +72,7 @@ export class App {
 			const cookies = await this.cookieManager.serializeFromTokenSet(result.tokenSet);
 			cookies.forEach((c, i) => reply.header('x-auth-set-cookie-' + (i + 1), c));
 			if (result.tokenSet.idToken) {
+				await this.api?.onIdToken?.(result.tokenSet.idToken);
 				reply.header('x-auth-id-token', JSON.stringify(result.tokenSet.idToken));
 			}
 		}
