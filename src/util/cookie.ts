@@ -18,7 +18,7 @@ export class CookieManager {
 	private crypto: Crypto;
 
 	/// Construct the application
-	private constructor(private readonly config: CookieConfig) {
+	constructor(private readonly config: CookieConfig) {
 		this.crypto = new Crypto(this.config.cookieSecret);
 	}
 
@@ -61,9 +61,23 @@ export class CookieManager {
 	}
 
 	/**
+	 * Get the access token value from the cookie
+	 */
+	async getAccessToken(request: Request): Promise<string | null> {
+		return this.get(request, this.config.cookieAccessTokenName);
+	}
+
+	/**
+	 * Get the refresh token cookie
+	 */
+	async getRefreshToken(request: Request): Promise<string | null> {
+		return this.get(request, this.config.cookieRefreshTokenName);
+	}
+
+	/**
 	 * Get a cookie from the request and pass back
 	 */
-	async get(request: Request, cookieName: string): Promise<string | null> {
+	private async get(request: Request, cookieName: string): Promise<string | null> {
 		const cookieValue = request.cookies[cookieName];
 		if (!cookieValue) {
 			return null;

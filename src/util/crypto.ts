@@ -111,7 +111,7 @@ export class Crypto {
 	/**
 	 * Get a few random bytes
 	 */
-	private static getRandomBytes(size: number): Promise<Buffer> {
+	static getRandomBytes(size: number): Promise<Buffer> {
 		return new Promise<Buffer>((resolve, reject) => {
 			crypto.randomBytes(size, (err, bytes) => {
 				err ? reject(err) : resolve(bytes);

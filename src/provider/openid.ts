@@ -14,7 +14,7 @@ export type ProviderOpenIdConfig = {
 	providerValidateUrl: string;
 	providerUserinfoUrl: string;
 	providerRedirectUrl: string;
-	providerJwksUrl: string;
+	providerJwksUrl?: string;
 };
 
 /**
@@ -27,7 +27,7 @@ export class ProviderOpenId implements Provider {
 	constructor(private readonly config: ProviderOpenIdConfig) {
 		if (config.providerJwksUrl) {
 			this.jkwsClient = JWK({
-				jwksUri: this.config.providerJwksUrl,
+				jwksUri: config.providerJwksUrl,
 			});
 		}
 	}
