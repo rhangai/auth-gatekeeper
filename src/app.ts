@@ -17,10 +17,9 @@ export class App {
 	private constructor(private readonly config: Config) {
 		this.fastify = Fastify({ logger: true });
 		this.fastify.register(require('fastify-cookie'));
-		this.fastify.get('/login', this.login.bind(this));
-		this.fastify.get('/login-callback', this.loginCallback.bind(this));
-		this.fastify.get('/auth/validate', this.authValidate.bind(this));
-		this.fastify.get('/auth/login-callback', this.authLoginCallback.bind(this));
+		this.fastify.get('/login', this.routeLogin.bind(this));
+		this.fastify.get('/callback', this.routeCallback.bind(this));
+		this.fastify.get('/validate', this.routeValidate.bind(this));
 		this.cookieManager = new CookieManager(this.config.cookie);
 		this.provider = new ProviderOpenId(this.config.provider);
 	}
@@ -30,7 +29,7 @@ export class App {
 	 * @param request
 	 * @param reply
 	 */
-	private async login(request: Request, reply: Reply) {
+	private async routeLogin(request: Request, reply: Reply) {
 		const url = await this.provider.getAuthorizationUrl();
 		return reply.redirect(url);
 	}
@@ -40,7 +39,7 @@ export class App {
 	 * @param request
 	 * @param reply
 	 */
-	private async loginCallback(request: Request, reply: Reply) {
+	private async routeCallback(request: Request, reply: Reply) {
 		const tokenSet = await this.provider.grantAuthorizationCode({
 			code: request.query.code,
 		});
@@ -57,7 +56,7 @@ export class App {
 	 * @param request
 	 * @param reply
 	 */
-	private async authValidate(request: Request, reply: Reply) {
+	private async routeValidate(request: Request, reply: Reply) {
 		const result = await this.userinfoRefresh(request);
 		if (!result) {
 			const cookies = await this.cookieManager.serializeClear();
@@ -72,26 +71,6 @@ export class App {
 			}
 		}
 		reply.header('x-auth-userinfo', JSON.stringify(result.userinfo));
-		return '200 OK';
-	}
-	/**
-	 * Login callback, but instead of setting cookies, it sets the x-auth headers to be handled by the upstream.
-	 * @param request
-	 * @param reply
-	 */
-	private async authLoginCallback(request: Request, reply: Reply) {
-		const tokenSet = await this.provider.grantAuthorizationCode({
-			code: request.query.code,
-		});
-		const cookies = await this.cookieManager.serializeFromTokenSet(tokenSet);
-		cookies.forEach((c, i) => reply.header('x-auth-set-cookie-' + (i + 1), c));
-		if (!tokenSet) {
-			return reply.status(401).send('401 Unauthorized');
-		}
-		if (tokenSet.idToken) {
-			reply.header('x-auth-id-token', JSON.stringify(tokenSet.idToken));
-		}
-		reply.header('x-auth-redirect', '/');
 		return '200 OK';
 	}
 	/**

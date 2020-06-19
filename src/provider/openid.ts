@@ -12,7 +12,7 @@ export type ProviderOpenIdConfig = {
 	providerAuthUrl: string;
 	providerTokenUrl: string;
 	providerUserinfoUrl: string;
-	providerRedirectUrl: string;
+	providerCallbackUrl: string;
 	providerJwksUrl?: string;
 };
 
@@ -44,7 +44,7 @@ export class ProviderOpenId implements Provider {
 			url.searchParams.set('state', '123456');
 		}
 		url.searchParams.set('scope', 'openid email profile');
-		url.searchParams.set('redirect_uri', this.config.providerRedirectUrl);
+		url.searchParams.set('redirect_uri', this.config.providerCallbackUrl);
 		return url.href;
 	}
 
@@ -58,7 +58,7 @@ export class ProviderOpenId implements Provider {
 			grant_type: 'authorization_code',
 			client_id: this.config.providerClientId,
 			client_secret: this.config.providerClientSecret,
-			redirect_uri: this.config.providerRedirectUrl,
+			redirect_uri: this.config.providerCallbackUrl,
 			...form,
 		});
 	}

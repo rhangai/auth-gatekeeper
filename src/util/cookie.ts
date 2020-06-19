@@ -34,7 +34,10 @@ export class CookieManager {
 			return cookie.serialize(cookieName, '', { expires: new Date(1), path: '/' });
 		}
 		const cookieValue = await this.crypto.encrypt(value);
-		return cookie.serialize(cookieName, cookieValue, cookieOptions);
+		return cookie.serialize(cookieName, cookieValue, {
+			path: '/',
+			...cookieOptions,
+		});
 	}
 	/**
 	 * Serialize the clear cookies

@@ -122,7 +122,7 @@ export async function configParse(argv: string[]): Promise<Config> {
 				type: 'string',
 				demandOption: true,
 			},
-			'provider-redirect-url': {
+			'provider-callback-url': {
 				group: 'provider',
 				describe: 'Url to redirect the user. (redirect_uri on oauth terms)',
 				type: 'string',
@@ -151,7 +151,7 @@ export async function configParse(argv: string[]): Promise<Config> {
 			providerAuthUrl: args['provider-auth-url'],
 			providerTokenUrl: args['provider-token-url'],
 			providerUserinfoUrl: args['provider-userinfo-url'],
-			providerRedirectUrl: args['provider-redirect-url'],
+			providerCallbackUrl: args['provider-callback-url'],
 			providerJwksUrl: args['provider-jwks-url'],
 		},
 	};
