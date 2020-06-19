@@ -1,6 +1,6 @@
 {
   "name": "auth-proxy",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "main": "index.js",
   "author": "rhangai <hangai.renan@gmail.com>",
   "license": "MIT",
