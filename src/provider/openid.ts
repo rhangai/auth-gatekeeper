@@ -11,7 +11,6 @@ export type ProviderOpenIdConfig = {
 	providerClientSecret: string;
 	providerAuthUrl: string;
 	providerTokenUrl: string;
-	providerValidateUrl: string;
 	providerUserinfoUrl: string;
 	providerRedirectUrl: string;
 	providerJwksUrl?: string;
