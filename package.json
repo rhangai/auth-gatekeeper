@@ -1,7 +1,7 @@
 {
-  "name": "auth-proxy",
+  "name": "auth-gatekeeper",
   "version": "0.0.1",
-  "main": "index.js",
+  "bin": "dist/index.js",
   "author": "rhangai <hangai.renan@gmail.com>",
   "license": "MIT",
   "private": true,
