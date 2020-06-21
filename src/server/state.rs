@@ -6,7 +6,7 @@ use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 pub struct State {
 	random: RandomPtr,
 	config: config::Config,
-	crypto: Crypto,
+	pub crypto: Crypto,
 }
 
 impl State {

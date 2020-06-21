@@ -9,6 +9,12 @@ pub enum Error {
 
 impl std::error::Error for Error {}
 
+impl actix_web::error::ResponseError for Error {
+	fn error_response(&self) -> actix_web::HttpResponse {
+		actix_web::HttpResponse::InternalServerError().finish()
+	}
+}
+
 impl std::fmt::Display for Error {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		#[allow(unreachable_patterns)]
