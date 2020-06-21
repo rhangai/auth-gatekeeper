@@ -27,9 +27,9 @@ async fn login(state: web::Data<State>) -> Result<impl Responder, Error> {
 }
 
 async fn callback(req: HttpRequest, state: web::Data<State>) -> Result<impl Responder, Error> {
-	let data = "Aac5HK7PFg9bdyPm5TTItam2Pz/Dqfxqi7pt6u9qDKkuxNBRQV2QZyLVcjj4rWxeDvtdqzdnUuMjnBIfRvtzrgqsOwnW69zn19RMUUkfKCi1KjCYuElOUpSbtyu7CBE=";
+	let data = "Aa5M1jXk6aau8KF23t8tVMYFD74LISp5SgVoYqzPJp+pZ9vEML/ZD2nOnbYxIlprVCX9cfF/94ipD7lo4I22yjvinHG+s/RSGXTptnSl+k36seqFxxD518GqU+Z7ZDI=";
 	let decrypted = state.crypto.decrypt(data)?;
-	Ok(HttpResponse::Ok().body("Hello world!"))
+	Ok(HttpResponse::Ok().body(decrypted))
 }
 
 async fn validate(state: web::Data<State>) -> Result<impl Responder, Error> {
