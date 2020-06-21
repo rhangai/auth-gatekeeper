@@ -9,6 +9,9 @@ pub struct Crypto {
 }
 
 impl Crypto {
+	/**
+	 * Allocate a new crypto using the given secret
+	 */
 	pub fn new(secret: &str) -> Crypto {
 		Crypto {
 			secret: secret.to_string(),
@@ -147,5 +150,19 @@ impl Crypto {
 			v.set_len(size);
 		};
 		v
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	#[test]
+	fn test_encryption() {
+		let c = Crypto::new("Some key to test");
+
+		let data = "Encrypted string";
+		let encrypted = c.encrypt(data).unwrap();
+		let decrypted = c.decrypt(&encrypted).unwrap();
+		assert_eq!(data, decrypted);
 	}
 }
