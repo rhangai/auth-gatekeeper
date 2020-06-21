@@ -3,31 +3,34 @@ mod error;
 use error::Error;
 use ring::aead::{LessSafeKey, Nonce, UnboundKey, AES_256_GCM};
 
+/// Crypto functions
 pub struct Crypto {
+	/// Secret to encrypt the data
 	secret: String,
-	rand: Box<ring::rand::SystemRandom>,
+	/// Random generator
+	random: Box<dyn ring::rand::SecureRandom>,
 }
 
 impl Crypto {
-	/**
-	 * Allocate a new crypto using the given secret
-	 */
+	///
+	/// Create a new crypto
+	///
 	pub fn new(secret: &str) -> Crypto {
 		Crypto {
 			secret: secret.to_string(),
-			rand: Box::new(ring::rand::SystemRandom::new()),
+			random: Box::new(ring::rand::SystemRandom::new()),
 		}
 	}
 
-	/**
-	 * Encrypt some string using the current crypto
-	 */
+	///
+	/// Encrypt some data
+	///
 	pub fn encrypt(&self, data: &str) -> Result<String, Error> {
 		let data_range_start = 77;
 		let data_range_end = data_range_start + data.len();
 
 		let mut encrypted: Vec<u8> = Crypto::allocate_bytes(93 + data.len());
-		Self::fill_random_bytes(self.rand.as_ref(), &mut encrypted[1..77])?;
+		self.fill_random_bytes(&mut encrypted[1..77])?;
 		encrypted[data_range_start..data_range_end].copy_from_slice(&data.as_bytes());
 
 		// Set encrypted version
@@ -53,9 +56,9 @@ impl Crypto {
 		encrypted[data_range_end..].copy_from_slice(&tag.as_ref());
 		Ok(base64::encode(encrypted))
 	}
-	/**
-	 * Encrypt the data into the result
-	 */
+	///
+	/// Decrypt the data
+	///
 	pub fn decrypt(&self, data: &str) -> Result<String, Error> {
 		let mut encrypted = match base64::decode(data) {
 			Ok(v) => v,
@@ -104,13 +107,12 @@ impl Crypto {
 			Err(_e) => Err(Error::CryptoNonceError),
 		}
 	}
-
-	/**
-	 * Get a derived key using the given salt
-	 */
+	///
+	/// Get a derived key into the
+	///
 	fn get_derived_key(
 		&self,
-		key: &mut [u8],
+		out_key: &mut [u8],
 		salt: &[u8],
 		iterations: u32,
 		algoritm: ring::pbkdf2::Algorithm,
@@ -124,26 +126,23 @@ impl Crypto {
 			iteration_non_zero.unwrap(),
 			salt,
 			self.secret.as_bytes(),
-			key,
+			out_key,
 		);
 		Ok(())
 	}
-	/**
-	 * Get some random bytes
-	 */
-	fn fill_random_bytes<'a>(
-		rand: &dyn ring::rand::SecureRandom,
-		v: &'a mut [u8],
-	) -> Result<&'a [u8], Error> {
-		let result = rand.fill(v);
+	///
+	/// Fill the buffer with random data
+	///
+	fn fill_random_bytes<'a>(&self, v: &'a mut [u8]) -> Result<&'a [u8], Error> {
+		let result = self.random.fill(v);
 		match result {
 			Err(_e) => return Err(Error::CryptoRandomBytesError),
 			Ok(_v) => Ok(v),
 		}
 	}
-	/**
-	 * Allocate bytes
-	 */
+	///
+	/// Allocate a few bytes into a vector to use
+	///
 	fn allocate_bytes(size: usize) -> Vec<u8> {
 		let mut v: Vec<u8> = Vec::with_capacity(size);
 		unsafe {
@@ -160,7 +159,7 @@ mod tests {
 	fn test_encryption() {
 		let c = Crypto::new("Some key to test");
 
-		let data = "Encrypted string";
+		let data = "Some random data";
 		let encrypted = c.encrypt(data).unwrap();
 		let decrypted = c.decrypt(&encrypted).unwrap();
 		assert_eq!(data, decrypted);
