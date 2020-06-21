@@ -3,6 +3,8 @@ use ring::aead::{LessSafeKey, Nonce, UnboundKey, AES_256_GCM};
 
 pub type RandomPtr = std::sync::Arc<dyn ring::rand::SecureRandom>;
 
+const ITERATIONS: u32 = 4;
+
 /// Crypto functions
 #[derive(Clone)]
 pub struct Crypto {
@@ -46,7 +48,12 @@ impl Crypto {
 		let salt_bytes = &encrypted[13..77];
 
 		let mut key: Vec<u8> = Self::allocate_bytes(32);
-		self.get_derived_key(&mut key, salt_bytes, 1024, ring::pbkdf2::PBKDF2_HMAC_SHA512)?;
+		self.get_derived_key(
+			&mut key,
+			salt_bytes,
+			ITERATIONS,
+			ring::pbkdf2::PBKDF2_HMAC_SHA512,
+		)?;
 		let nonce = Self::get_nonce(&nonce_bytes)?;
 		let cipher = Self::get_cipher(&key)?;
 
@@ -76,7 +83,12 @@ impl Crypto {
 		let salt_bytes = &encrypted[13..77];
 
 		let mut key: Vec<u8> = Self::allocate_bytes(32);
-		self.get_derived_key(&mut key, salt_bytes, 1024, ring::pbkdf2::PBKDF2_HMAC_SHA512)?;
+		self.get_derived_key(
+			&mut key,
+			salt_bytes,
+			ITERATIONS,
+			ring::pbkdf2::PBKDF2_HMAC_SHA512,
+		)?;
 
 		let nonce = Self::get_nonce(&nonce_bytes)?;
 		let cipher = Self::get_cipher(&key)?;

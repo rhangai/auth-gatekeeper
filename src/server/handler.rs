@@ -2,18 +2,38 @@ use super::state::State;
 use crate::config;
 use crate::error::Error;
 use crate::util::crypto;
-use actix_web::{web, HttpResponse, Responder};
+use actix_web::{cookie, web, HttpMessage, HttpRequest, HttpResponse, Responder};
 
 async fn login(state: web::Data<State>) -> Result<impl Responder, Error> {
+	let mut builder = HttpResponse::Ok();
+	let encrypted = state.crypto.encrypt("10")?;
+	builder.cookie(
+		cookie::Cookie::build(
+			state.config.cookie_access_token_name.to_owned(),
+			encrypted.to_owned(),
+		)
+		.path("/")
+		.finish(),
+	);
+	builder.cookie(
+		cookie::Cookie::build(
+			state.config.cookie_refresh_token_name.to_owned(),
+			encrypted.to_owned(),
+		)
+		.path("/")
+		.finish(),
+	);
+	Ok(builder.finish())
+}
+
+async fn callback(req: HttpRequest, state: web::Data<State>) -> Result<impl Responder, Error> {
+	let data = "Aac5HK7PFg9bdyPm5TTItam2Pz/Dqfxqi7pt6u9qDKkuxNBRQV2QZyLVcjj4rWxeDvtdqzdnUuMjnBIfRvtzrgqsOwnW69zn19RMUUkfKCi1KjCYuElOUpSbtyu7CBE=";
+	let decrypted = state.crypto.decrypt(data)?;
 	Ok(HttpResponse::Ok().body("Hello world!"))
 }
 
-async fn callback(state: web::Data<State>) -> impl Responder {
-	HttpResponse::Ok().body("Hello world again!")
-}
-
-async fn validate(state: web::Data<State>) -> impl Responder {
-	HttpResponse::Ok().body("Hello world again!")
+async fn validate(state: web::Data<State>) -> Result<impl Responder, Error> {
+	Ok(HttpResponse::Ok().body("Hello world!"))
 }
 
 pub struct Handler {
@@ -22,9 +42,7 @@ pub struct Handler {
 
 impl Handler {
 	pub fn new() -> Handler {
-		let config = config::Config {
-			cookie_secret: String::from("oi"),
-		};
+		let config = config::Config::new();
 		Handler { config: config }
 	}
 

@@ -73,7 +73,6 @@ dependencies = [
  "pin-project",
  "rand",
  "regex",
- "ring",
  "serde",
  "serde_json",
  "serde_urlencoded",
