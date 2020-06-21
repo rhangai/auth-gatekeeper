@@ -1,39 +1,109 @@
 #[path = "../error.rs"]
 mod error;
 use error::Error;
+use ring::aead::{LessSafeKey, Nonce, UnboundKey, AES_256_GCM};
 
 pub struct Crypto {
 	secret: String,
+	rand: Box<ring::rand::SystemRandom>,
 }
 
 impl Crypto {
 	pub fn new(secret: &str) -> Crypto {
 		Crypto {
 			secret: secret.to_string(),
+			rand: Box::new(ring::rand::SystemRandom::new()),
 		}
 	}
 
 	/**
-	 *
+	 * Encrypt some string using the current crypto
 	 */
-	pub async fn encrypt(&self, data: &str) -> Result<String, Error> {
-		let rand = ring::rand::SystemRandom::new();
+	pub fn encrypt(&self, data: &str) -> Result<String, Error> {
+		let data_range_start = 77;
+		let data_range_end = data_range_start + data.len();
 
-		let mut encrypted: Vec<u8> = Crypto::allocate_bytes(97);
+		let mut encrypted: Vec<u8> = Crypto::allocate_bytes(93 + data.len());
+		Self::fill_random_bytes(self.rand.as_ref(), &mut encrypted[1..77])?;
+		encrypted[data_range_start..data_range_end].copy_from_slice(&data.as_bytes());
 
-		let iv = Crypto::fill_random_bytes(&rand, &mut encrypted[1..17])?;
-		let salt = Crypto::fill_random_bytes(&rand, &mut encrypted[17..(17 + 64)])?;
+		// Set encrypted version
+		encrypted[0] = 1;
+		let nonce_bytes = &encrypted[1..13];
+		let salt_bytes = &encrypted[13..77];
 
-		let mut key: Vec<u8> = Crypto::allocate_bytes(32);
-		self.get_derived_key(&mut key, salt, 1024, ring::pbkdf2::PBKDF2_HMAC_SHA512)?;
+		let mut key: Vec<u8> = Self::allocate_bytes(32);
+		self.get_derived_key(&mut key, salt_bytes, 1024, ring::pbkdf2::PBKDF2_HMAC_SHA512)?;
+		let nonce = Self::get_nonce(&nonce_bytes)?;
+		let cipher = Self::get_cipher(&key)?;
 
-		println!("Array {:?}", encrypted);
+		let tag_result = cipher.seal_in_place_separate_tag(
+			nonce,
+			ring::aead::Aad::empty(),
+			&mut encrypted[data_range_start..data_range_end],
+		);
 
-		Ok(String::from(data))
+		let tag = match tag_result {
+			Ok(t) => t,
+			Err(_e) => return Err(Error::CryptoError),
+		};
+		encrypted[data_range_end..].copy_from_slice(&tag.as_ref());
+		Ok(base64::encode(encrypted))
+	}
+	/**
+	 * Encrypt the data into the result
+	 */
+	pub fn decrypt(&self, data: &str) -> Result<String, Error> {
+		let mut encrypted = match base64::decode(data) {
+			Ok(v) => v,
+			Err(_err) => return Err(Error::CryptoError),
+		};
+		let data_range_start = 77;
+		let nonce_bytes = &encrypted[1..13];
+		let salt_bytes = &encrypted[13..77];
+
+		let mut key: Vec<u8> = Self::allocate_bytes(32);
+		self.get_derived_key(&mut key, salt_bytes, 1024, ring::pbkdf2::PBKDF2_HMAC_SHA512)?;
+
+		let nonce = Self::get_nonce(&nonce_bytes)?;
+		let cipher = Self::get_cipher(&key)?;
+
+		let decrypted_result = cipher.open_within(
+			nonce,
+			ring::aead::Aad::empty(),
+			&mut encrypted,
+			data_range_start..,
+		);
+
+		let decrypted_bytes = match decrypted_result {
+			Ok(v) => v,
+			Err(_err) => return Err(Error::CryptoError),
+		};
+		let decrypted_text = unsafe { String::from_utf8_unchecked(decrypted_bytes.to_vec()) };
+		Ok(decrypted_text)
 	}
 
 	/**
-	 * Get some random bytes
+	 * Get a new cipher to use
+	 */
+	fn get_cipher(key: &[u8]) -> Result<LessSafeKey, Error> {
+		let unbound_key = match UnboundKey::new(&AES_256_GCM, &key) {
+			Ok(k) => k,
+			Err(_e) => return Err(Error::CryptoCipherError),
+		};
+		Ok(LessSafeKey::new(unbound_key))
+	}
+
+	/// Get a new nonce using the given bytes
+	fn get_nonce(bytes: &[u8]) -> Result<Nonce, Error> {
+		match Nonce::try_assume_unique_for_key(&bytes) {
+			Ok(k) => Ok(k),
+			Err(_e) => Err(Error::CryptoNonceError),
+		}
+	}
+
+	/**
+	 * Get a derived key using the given salt
 	 */
 	fn get_derived_key(
 		&self,
@@ -44,7 +114,7 @@ impl Crypto {
 	) -> Result<(), Error> {
 		let iteration_non_zero = std::num::NonZeroU32::new(iterations);
 		if iteration_non_zero.is_none() {
-			return Err(Error::CryptoError);
+			return Err(Error::CryptoDeriveKeyWrongSizeError);
 		}
 		ring::pbkdf2::derive(
 			algoritm,
@@ -64,7 +134,7 @@ impl Crypto {
 	) -> Result<&'a [u8], Error> {
 		let result = rand.fill(v);
 		match result {
-			Err(_e) => return Err(Error::CryptoError),
+			Err(_e) => return Err(Error::CryptoRandomBytesError),
 			Ok(_v) => Ok(v),
 		}
 	}

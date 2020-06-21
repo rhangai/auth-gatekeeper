@@ -1,6 +1,10 @@
 #[derive(Debug)]
 pub enum Error {
 	CryptoError,
+	CryptoCipherError,
+	CryptoNonceError,
+	CryptoDeriveKeyWrongSizeError,
+	CryptoRandomBytesError,
 }
 
 impl std::error::Error for Error {}
