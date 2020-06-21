@@ -1,6 +1,4 @@
-#[path = "../error.rs"]
-mod error;
-use error::Error;
+use crate::error::Error;
 use ring::aead::{LessSafeKey, Nonce, UnboundKey, AES_256_GCM};
 
 pub type RandomPtr = std::sync::Arc<dyn ring::rand::SecureRandom>;

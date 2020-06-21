@@ -1,21 +1,17 @@
-#[path = "./options.rs"]
-mod options;
-#[path = "../util/mod.rs"]
-mod util;
-
+use crate::config;
+use crate::util::crypto::{Crypto, RandomPtr};
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
-use util::crypto::{Crypto, RandomPtr};
 
 #[derive(Clone)]
 pub struct State {
 	random: RandomPtr,
-	config: options::Config,
+	config: config::Config,
 	crypto: Crypto,
 }
 
 impl State {
-	pub fn new(config: options::Config, random: RandomPtr) -> State {
-		let crypto = Crypto::new(&config.cookie_secret.clone(), random.clone());
+	pub fn new(config: config::Config, random: RandomPtr) -> State {
+		let crypto = Crypto::new(&config.cookie_secret, random.clone());
 		State {
 			random: random,
 			config: config,
