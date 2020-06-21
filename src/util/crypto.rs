@@ -3,23 +3,32 @@ mod error;
 use error::Error;
 use ring::aead::{LessSafeKey, Nonce, UnboundKey, AES_256_GCM};
 
+pub type RandomPtr = std::sync::Arc<dyn ring::rand::SecureRandom>;
+
 /// Crypto functions
+#[derive(Clone)]
 pub struct Crypto {
 	/// Secret to encrypt the data
 	secret: String,
 	/// Random generator
-	random: Box<dyn ring::rand::SecureRandom>,
+	random: RandomPtr,
 }
 
 impl Crypto {
 	///
 	/// Create a new crypto
 	///
-	pub fn new(secret: &str) -> Crypto {
+	pub fn new(secret: &str, random: RandomPtr) -> Crypto {
 		Crypto {
 			secret: secret.to_string(),
-			random: Box::new(ring::rand::SystemRandom::new()),
+			random: random,
 		}
+	}
+	///
+	/// Create a new crypto
+	///
+	pub fn create_random() -> RandomPtr {
+		std::sync::Arc::new(ring::rand::SystemRandom::new())
 	}
 
 	///
@@ -157,7 +166,8 @@ mod tests {
 	use super::*;
 	#[test]
 	fn test_encryption() {
-		let c = Crypto::new("Some key to test");
+		let random = Crypto::create_random();
+		let c = Crypto::new("Some key to test", random);
 
 		let data = "Some random data";
 		let encrypted = c.encrypt(data).unwrap();
