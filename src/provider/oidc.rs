@@ -1,34 +1,45 @@
 use super::base::{Provider, TokenSet};
+use crate::config::Config;
 use crate::error::Error;
 use reqwest::Url;
 
 #[derive(Debug)]
 pub struct ProviderOIDC {
+	client: reqwest::Client,
 	auth_url: Url,
+	token_url: Url,
 }
 
 impl ProviderOIDC {
-	pub fn new() -> Result<Self, Error> {
+	pub fn new(config: &Config) -> Result<Self, Error> {
 		let auth_url =
-			Url::parse("https://docs.rs/reqwest/0.10.6/reqwest/struct.Url.html#method.into_string")
-				.or_else(|_| Err(Error::CryptoError))?;
+			Url::parse(&config.provider_auth_url).or_else(|_| Err(Error::ConfigError))?;
 
-		Ok(Self { auth_url: auth_url })
+		let token_url =
+			Url::parse(&config.provider_token_url).or_else(|_| Err(Error::ConfigError))?;
+
+		Ok(Self {
+			client: reqwest::Client::new(),
+			auth_url: auth_url,
+			token_url: token_url,
+		})
 	}
 
-	async fn grant<T: serde::Serialize + ?Sized>(&self, form: &T) -> Result<TokenSet, Error> {
-		let client = reqwest::Client::new();
-		let res = client
-			.post("http://httpbin.org/post")
+	async fn grant<T: serde::Serialize + ?Sized>(
+		&self,
+		form: &T,
+	) -> Result<Option<TokenSet>, Error> {
+		let res = self
+			.client
+			.post(self.token_url.as_str())
 			.form(form)
 			.send()
 			.await;
-		println!("Request {:?}", res);
 		let body = res.unwrap().json::<serde_json::Value>().await;
-		println!("Body {:?}", body);
-		Ok(TokenSet {
+		Ok(Some(TokenSet {
 			access_token: String::from("oi"),
-		})
+			refresh_token: String::from("oi"),
+		}))
 	}
 }
 
@@ -48,21 +59,33 @@ impl Provider for ProviderOIDC {
 		url.into_string()
 	}
 
-	async fn grant_authorization_code(&self) -> Result<TokenSet, Error> {
+	async fn userinfo(&self, access_token: &str) -> Result<Option<serde_json::Value>, Error> {
+		Ok(None)
+	}
+
+	///
+	/// Peform an authorization_code grant
+	///
+	async fn grant_authorization_code(&self, code: &str) -> Result<Option<TokenSet>, Error> {
 		let params = [
 			("grant_type", "authorization_code"),
 			("client_id", "teste"),
 			("client_secret", "teste"),
 			("redirect_uri", "teste"),
+			("code", code),
 		];
 		self.grant(&params).await
 	}
 
-	async fn grant_refresh_token(&self) -> Result<TokenSet, Error> {
+	///
+	/// Peform a refresh_token grant
+	///
+	async fn grant_refresh_token(&self, refresh_token: &str) -> Result<Option<TokenSet>, Error> {
 		let params = [
 			("grant_type", "refresh_token"),
 			("client_id", "teste"),
 			("client_secret", "teste"),
+			("refresh_token", refresh_token),
 		];
 		self.grant(&params).await
 	}

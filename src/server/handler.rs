@@ -1,4 +1,5 @@
 use super::data::Data;
+use super::response::Response;
 use super::state::State;
 use crate::config::Config;
 use crate::error::Error;
@@ -9,6 +10,12 @@ use serde::Deserialize;
 #[derive(Deserialize)]
 struct LoginQuery {
 	url: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct CallbackQuery {
+	state: Option<String>,
+	code: Option<String>,
 }
 
 ///
@@ -49,15 +56,47 @@ async fn login(
 ///
 /// Callback
 ///
-async fn callback(data: web::Data<Data>, req: HttpRequest) -> Result<impl Responder, Error> {
-	data.provider.grant_authorization_code().await?;
-	Ok(HttpResponse::Ok().finish())
+async fn callback(
+	data: web::Data<Data>,
+	query: web::Query<CallbackQuery>,
+) -> Result<impl Responder, Error> {
+	// No query code, so unauthorized
+	if query.code.is_none() {
+		return Ok(HttpResponse::Unauthorized().finish());
+	}
+
+	// Try to request an access token
+	let token_set = data
+		.provider
+		.grant_authorization_code(&query.code.as_ref().unwrap())
+		.await?;
+	if token_set.is_none() {
+		return Ok(HttpResponse::Unauthorized().finish());
+	}
+
+	let mut builder = HttpResponse::Ok();
+
+	Response::token_set_add_cookies(&mut builder, &data, &token_set.as_ref().unwrap());
+
+	// Set the location
+	{
+		let mut location: String = String::from("/");
+		if query.state.is_some() {
+			let state = State::deserialize_state(&data.crypto, &query.state.as_ref().unwrap());
+			if state.is_ok() {
+				location = state.unwrap().url.unwrap_or(location);
+			}
+		}
+		builder.header("location", location);
+	}
+	Ok(builder.finish())
 }
 
 ///
 /// Validate the login
 ///
 async fn validate(data: web::Data<Data>) -> Result<impl Responder, Error> {
+	// Ok(Response::create(true).set_cookies().finish())
 	Ok(HttpResponse::Ok().finish())
 }
 

@@ -9,6 +9,7 @@ edition = "2018"
 [dependencies]
 actix-web = "2.0"
 actix-rt = "1.0"
+actix-http = "1.0"
 ring = "0.16.15"
 base64 = "0.12.2"
 async-trait = "0.1.36"

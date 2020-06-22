@@ -1,2 +1,3 @@
-pub mod base;
+mod base;
 pub mod oidc;
+pub use base::*;

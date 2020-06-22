@@ -5,6 +5,8 @@ pub enum Error {
 	CryptoNonceError,
 	CryptoDeriveKeyWrongSizeError,
 	CryptoRandomBytesError,
+
+	ConfigError,
 }
 
 impl std::error::Error for Error {}

@@ -304,6 +304,7 @@ dependencies = [
 name = "auth-gatekeeper"
 version = "0.1.0"
 dependencies = [
+ "actix-http",
  "actix-rt",
  "actix-web",
  "async-trait",
