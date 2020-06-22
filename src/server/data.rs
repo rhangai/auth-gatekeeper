@@ -1,6 +1,6 @@
 use crate::config::Config;
 use crate::error::Error;
-use crate::provider::{oidc::ProviderOIDC, Provider};
+use crate::provider::{Provider, ProviderKeycloak, ProviderOIDC};
 use crate::util::crypto::{Crypto, RandomPtr};
 
 pub struct Data {
@@ -13,7 +13,7 @@ pub struct Data {
 impl Data {
 	pub fn new(config: Config, random: RandomPtr) -> Result<Self, Error> {
 		let crypto = Crypto::new("test", random.clone());
-		let provider = ProviderOIDC::new(&config)?;
+		let provider = ProviderKeycloak::new(&config)?;
 		Ok(Self {
 			random: random,
 			config: config,

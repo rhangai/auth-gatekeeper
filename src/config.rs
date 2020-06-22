@@ -8,7 +8,7 @@ pub struct Config {
 	pub provider_client_secret: String,
 	pub provider_auth_url: String,
 	pub provider_token_url: String,
-	// pub provider_userinfo_url: String,
+	pub provider_userinfo_url: String,
 	// pub provider_callback_url: String,
 	// pub provider_jwks_url: String,
 	// pub api: String,
@@ -22,10 +22,17 @@ impl Config {
 			cookie_secret: String::from("oi"),
 			cookie_access_token_name: String::from("sat"),
 			cookie_refresh_token_name: String::from("srt"),
-			provider_client_id: String::from("ok"),
-			provider_client_secret: String::from("ok"),
-			provider_auth_url: String::from("ok"),
-			provider_token_url: String::from("ok"),
+			provider_client_id: String::from("test"),
+			provider_client_secret: String::from("ccc6f1dd-662e-451f-8948-dcf3b726986d"),
+			provider_auth_url: String::from(
+				"http://auth.honest.localhost/auth/realms/honest/protocol/openid-connect/auth",
+			),
+			provider_token_url: String::from(
+				"http://auth.honest.localhost/auth/realms/honest/protocol/openid-connect/token",
+			),
+			provider_userinfo_url: String::from(
+				"http://auth.honest.localhost/auth/realms/honest/protocol/openid-connect/userinfo",
+			),
 		}
 	}
 }

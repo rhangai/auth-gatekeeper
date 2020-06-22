@@ -8,6 +8,7 @@ pub struct ProviderOIDC {
 	client: reqwest::Client,
 	auth_url: Url,
 	token_url: Url,
+	userinfo_url: Url,
 }
 
 impl ProviderOIDC {
@@ -17,11 +18,14 @@ impl ProviderOIDC {
 
 		let token_url =
 			Url::parse(&config.provider_token_url).or_else(|_| Err(Error::ConfigError))?;
+		let userinfo_url =
+			Url::parse(&config.provider_userinfo_url).or_else(|_| Err(Error::ConfigError))?;
 
 		Ok(Self {
 			client: reqwest::Client::new(),
 			auth_url: auth_url,
 			token_url: token_url,
+			userinfo_url: userinfo_url,
 		})
 	}
 
@@ -45,6 +49,9 @@ impl ProviderOIDC {
 
 #[async_trait::async_trait]
 impl Provider for ProviderOIDC {
+	///
+	/// Get the OIDC authorization url
+	///
 	fn get_authorization_url(&self, state: String) -> String {
 		let mut url = self.auth_url.clone();
 		{
@@ -59,11 +66,13 @@ impl Provider for ProviderOIDC {
 		}
 		url.into_string()
 	}
-
+	///
+	/// Request the userinfo
+	///
 	async fn userinfo(&self, access_token: &str) -> Result<Option<serde_json::Value>, Error> {
 		let res = self
 			.client
-			.get(self.token_url.as_str())
+			.get(self.userinfo_url.as_str())
 			.header("authorization", format!("bearer {}", access_token))
 			.send()
 			.await;
@@ -85,7 +94,6 @@ impl Provider for ProviderOIDC {
 		}
 		Ok(Some(body.unwrap()))
 	}
-
 	///
 	/// Peform an authorization_code grant
 	///
@@ -99,7 +107,6 @@ impl Provider for ProviderOIDC {
 		];
 		self.grant(&params).await
 	}
-
 	///
 	/// Peform a refresh_token grant
 	///
