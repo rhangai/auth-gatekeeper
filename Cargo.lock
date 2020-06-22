@@ -308,6 +308,7 @@ dependencies = [
  "actix-web",
  "async-trait",
  "base64 0.12.2",
+ "futures",
  "reqwest",
  "ring",
  "serde",
