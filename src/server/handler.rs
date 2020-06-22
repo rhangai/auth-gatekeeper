@@ -29,26 +29,6 @@ async fn login(
 	let url = data.provider.get_authorization_url(state_str);
 	let response = HttpResponse::Found().header("location", url).finish();
 	Ok(response)
-
-	// let mut builder = HttpResponse::Ok();
-	// let encrypted = state.crypto.encrypt("10")?;
-	// builder.cookie(
-	// 	cookie::Cookie::build(
-	// 		state.config.cookie_access_token_name.to_owned(),
-	// 		encrypted.to_owned(),
-	// 	)
-	// 	.path("/")
-	// 	.finish(),
-	// );
-	// builder.cookie(
-	// 	cookie::Cookie::build(
-	// 		state.config.cookie_refresh_token_name.to_owned(),
-	// 		encrypted.to_owned(),
-	// 	)
-	// 	.path("/")
-	// 	.finish(),
-	// );
-	// Ok(builder.finish())
 }
 
 ///
