@@ -8,3 +8,8 @@ services:
     proxy:
         image: nginx
 ```
+
+## Configuration
+
+-   `AUTH_GATEKEEPER_PROVIDER`: Provider for the gatekeeper. `oidc` or `keycloak`
+-   `AUTH*GATEKEEPER_PROVIDER*

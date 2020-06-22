@@ -4,7 +4,7 @@ use super::state::State;
 use crate::config::Config;
 use crate::error::Error;
 use crate::util::crypto;
-use actix_web::{web, HttpMessage, HttpRequest, HttpResponse, Responder};
+use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use serde::Deserialize;
 
 #[derive(Deserialize)]

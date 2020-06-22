@@ -2,6 +2,7 @@ use super::base::{Provider, TokenSet};
 use super::oidc::ProviderOIDC;
 use crate::config::Config;
 use crate::error::Error;
+use std::time::SystemTime;
 
 pub struct ProviderKeycloak {
 	oidc: ProviderOIDC,
@@ -35,8 +36,11 @@ impl Provider for ProviderKeycloak {
 		}
 
 		let claims = userinfo.unwrap().claims;
-		let exp = claims["exp"].as_i64();
-		if exp.is_some() && exp.unwrap() <= 1592848651 {
+
+		let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH);
+
+		let exp = claims["exp"].as_u64();
+		if exp.is_some() && exp.unwrap() <= now.unwrap().as_secs() {
 			return Ok(None);
 		}
 		Ok(Some(claims))

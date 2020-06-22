@@ -11,17 +11,22 @@ pub struct ProviderOIDC {
 	auth_url: Url,
 	token_url: Url,
 	userinfo_url: Url,
+	callback_url: Url,
 }
 
 impl ProviderOIDC {
+	///
+	/// Create a new OpenID Connect provider
+	///
 	pub fn new(config: &Config) -> Result<Self, Error> {
 		let auth_url =
 			Url::parse(&config.provider_auth_url).or_else(|_| Err(Error::ConfigError))?;
-
 		let token_url =
 			Url::parse(&config.provider_token_url).or_else(|_| Err(Error::ConfigError))?;
 		let userinfo_url =
 			Url::parse(&config.provider_userinfo_url).or_else(|_| Err(Error::ConfigError))?;
+		let callback_url =
+			Url::parse(&config.provider_callback_url).or_else(|_| Err(Error::ConfigError))?;
 
 		Ok(Self {
 			client: reqwest::Client::new(),
@@ -30,9 +35,12 @@ impl ProviderOIDC {
 			auth_url: auth_url,
 			token_url: token_url,
 			userinfo_url: userinfo_url,
+			callback_url: callback_url,
 		})
 	}
-
+	///
+	/// Grant a token
+	///
 	async fn grant<T: serde::Serialize + ?Sized>(
 		&self,
 		form: &T,
@@ -75,7 +83,7 @@ impl Provider for ProviderOIDC {
 				.append_pair("response_type", "code")
 				.append_pair("scope", "openid email profile")
 				.append_pair("client_id", &self.client_id)
-				.append_pair("redirect_uri", "http://localhost:8088/callback");
+				.append_pair("redirect_uri", self.callback_url.as_str());
 			if !state.is_empty() {
 				query_pairs.append_pair("state", &state);
 			}
@@ -118,7 +126,7 @@ impl Provider for ProviderOIDC {
 			("grant_type", "authorization_code"),
 			("client_id", &self.client_id),
 			("client_secret", &self.client_secret),
-			("redirect_uri", "http://localhost:8088/callback"),
+			("redirect_uri", self.callback_url.as_str()),
 			("code", code),
 		];
 		self.grant(&params).await

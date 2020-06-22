@@ -2,7 +2,7 @@ use super::data::Data;
 use crate::error::Error;
 use crate::provider::TokenSet;
 use actix_http::ResponseBuilder;
-use actix_web::{cookie, web, HttpMessage, HttpRequest, HttpResponse};
+use actix_web::{cookie, web, HttpMessage, HttpRequest};
 
 pub struct HttpRequestRefreshInfo {
 	pub token_set: Option<TokenSet>,
