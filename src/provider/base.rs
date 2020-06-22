@@ -6,6 +6,7 @@ use crate::error::Error;
 pub struct TokenSet {
 	pub access_token: String,
 	pub refresh_token: String,
+	pub expires_in: Option<i64>,
 }
 
 #[async_trait::async_trait]

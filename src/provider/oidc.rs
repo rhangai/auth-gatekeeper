@@ -43,10 +43,15 @@ impl ProviderOIDC {
 			.form(form)
 			.send()
 			.await;
-		let body = res.unwrap().json::<serde_json::Value>().await;
+		let body = res
+			.unwrap()
+			.json::<serde_json::Value>()
+			.await
+			.or_else(|_| Err(Error::RequestError))?;
 		Ok(Some(TokenSet {
-			access_token: String::from("oi"),
-			refresh_token: String::from("oi"),
+			access_token: body["access_token"].to_string(),
+			refresh_token: body["refresh_token"].to_string(),
+			expires_in: body["expires_in"].as_i64(),
 		}))
 	}
 }
@@ -105,9 +110,9 @@ impl Provider for ProviderOIDC {
 	async fn grant_authorization_code(&self, code: &str) -> Result<Option<TokenSet>, Error> {
 		let params = [
 			("grant_type", "authorization_code"),
-			("client_id", "teste"),
-			("client_secret", "teste"),
-			("redirect_uri", "teste"),
+			("client_id", &self.client_id),
+			("client_secret", &self.client_secret),
+			("redirect_uri", "http://localhost:8088/callback"),
 			("code", code),
 		];
 		self.grant(&params).await
@@ -118,8 +123,8 @@ impl Provider for ProviderOIDC {
 	async fn grant_refresh_token(&self, refresh_token: &str) -> Result<Option<TokenSet>, Error> {
 		let params = [
 			("grant_type", "refresh_token"),
-			("client_id", "teste"),
-			("client_secret", "teste"),
+			("client_id", &self.client_id),
+			("client_secret", &self.client_secret),
 			("refresh_token", refresh_token),
 		];
 		self.grant(&params).await

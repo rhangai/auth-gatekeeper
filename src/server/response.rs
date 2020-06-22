@@ -17,11 +17,13 @@ impl Response {
 			data,
 			&data.config.cookie_access_token_name,
 			&token_set.access_token,
+			token_set.expires_in,
 		)?;
 		let cookie_refresh_token = Self::create_cookie(
 			data,
 			&data.config.cookie_refresh_token_name,
-			&token_set.access_token,
+			&token_set.refresh_token,
+			None,
 		)?;
 		builder.cookie(cookie_access_token);
 		builder.cookie(cookie_refresh_token);
@@ -32,9 +34,10 @@ impl Response {
 		data: &web::Data<Data>,
 		name: &str,
 		value: &str,
+		expires_in: Option<i64>,
 	) -> Result<cookie::Cookie<'a>, Error> {
 		let cookie_value = data.crypto.encrypt(value)?;
-		let cookie = cookie::Cookie::build(name.to_owned(), cookie_value).finish();
-		Ok(cookie)
+		let mut builder = cookie::Cookie::build(name.to_owned(), cookie_value).path("/");
+		Ok(builder.finish())
 	}
 }
