@@ -7,6 +7,8 @@ pub enum Error {
 	CryptoRandomBytesError,
 
 	ConfigError,
+
+	RequestError,
 }
 
 impl std::error::Error for Error {}

@@ -47,20 +47,43 @@ impl ProviderOIDC {
 impl Provider for ProviderOIDC {
 	fn get_authorization_url(&self, state: String) -> String {
 		let mut url = self.auth_url.clone();
-		let mut query_pairs = url.query_pairs_mut();
-		query_pairs
-			.append_pair("response_type", "code")
-			.append_pair("scope", "openid email profile")
-			.append_pair("client_id", "");
-		if !state.is_empty() {
-			query_pairs.append_pair("state", &state);
+		{
+			let mut query_pairs = url.query_pairs_mut();
+			query_pairs
+				.append_pair("response_type", "code")
+				.append_pair("scope", "openid email profile")
+				.append_pair("client_id", "");
+			if !state.is_empty() {
+				query_pairs.append_pair("state", &state);
+			}
 		}
-		drop(query_pairs);
 		url.into_string()
 	}
 
 	async fn userinfo(&self, access_token: &str) -> Result<Option<serde_json::Value>, Error> {
-		Ok(None)
+		let res = self
+			.client
+			.get(self.token_url.as_str())
+			.header("authorization", format!("bearer {}", access_token))
+			.send()
+			.await;
+
+		if res.is_err() {
+			let code = res.unwrap_err().status();
+			if code.is_some() {
+				let status_code = code.unwrap().as_u16();
+				if status_code == 400 || status_code == 401 {
+					return Ok(None);
+				}
+			}
+			return Err(Error::RequestError);
+		}
+
+		let body = res.unwrap().json::<serde_json::Value>().await;
+		if body.is_err() {
+			return Err(Error::RequestError);
+		}
+		Ok(Some(body.unwrap()))
 	}
 
 	///
