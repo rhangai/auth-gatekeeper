@@ -48,9 +48,15 @@ impl ProviderOIDC {
 			.json::<serde_json::Value>()
 			.await
 			.or_else(|_| Err(Error::RequestError))?;
+
+		let access_token = body["access_token"].as_str();
+		let refresh_token = body["refresh_token"].as_str();
+		if access_token.is_none() || refresh_token.is_none() {
+			return Ok(None);
+		}
 		Ok(Some(TokenSet {
-			access_token: body["access_token"].to_string(),
-			refresh_token: body["refresh_token"].to_string(),
+			access_token: access_token.unwrap().to_owned(),
+			refresh_token: refresh_token.unwrap().to_owned(),
 			expires_in: body["expires_in"].as_i64(),
 		}))
 	}

@@ -3,6 +3,7 @@ use crate::error::Error;
 ///
 /// The token set
 ///
+#[derive(Debug)]
 pub struct TokenSet {
 	pub access_token: String,
 	pub refresh_token: String,

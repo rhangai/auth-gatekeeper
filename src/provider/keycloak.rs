@@ -33,7 +33,13 @@ impl Provider for ProviderKeycloak {
 		if userinfo.is_err() {
 			return Ok(None);
 		}
-		Ok(Some(userinfo.unwrap().claims))
+
+		let claims = userinfo.unwrap().claims;
+		let exp = claims["exp"].as_i64();
+		if exp.is_some() && exp.unwrap() <= 1592848651 {
+			return Ok(None);
+		}
+		Ok(Some(claims))
 	}
 	///
 	/// Get the OIDC authorization url
