@@ -6,7 +6,6 @@ pub type RandomPtr = std::sync::Arc<dyn ring::rand::SecureRandom>;
 const ITERATIONS: u32 = 4;
 
 /// Crypto functions
-#[derive(Clone)]
 pub struct Crypto {
 	/// Secret to encrypt the data
 	secret: String,

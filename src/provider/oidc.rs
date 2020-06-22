@@ -1,16 +1,17 @@
-use super::base::{Provider, ProviderGrantAuthorizationCodeForm, TokenSet};
+use super::base::Provider;
 
+#[derive(Debug)]
 pub struct ProviderOIDC {}
 
 impl ProviderOIDC {
 	pub fn new() -> Self {
-		ProviderOIDC {}
+		Self {}
 	}
 }
 
 #[async_trait::async_trait]
 impl Provider for ProviderOIDC {
-	async fn grant_authorization_code(form: ProviderGrantAuthorizationCodeForm) -> TokenSet {
-		TokenSet::new()
+	async fn grant_authorization_code(&self) -> u32 {
+		32
 	}
 }

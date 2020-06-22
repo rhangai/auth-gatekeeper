@@ -1,21 +1,23 @@
-use crate::config;
+use crate::config::Config;
+use crate::provider::base::Provider;
+use crate::provider::oidc::ProviderOIDC;
 use crate::util::crypto::{Crypto, RandomPtr};
-use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 
-#[derive(Clone)]
 pub struct State {
 	random: RandomPtr,
-	pub config: config::Config,
+	pub config: Config,
 	pub crypto: Crypto,
+	pub provider: Box<dyn Provider>,
 }
 
 impl State {
-	pub fn new(config: config::Config, random: RandomPtr) -> State {
-		let crypto = Crypto::new(&config.cookie_secret, random.clone());
-		State {
+	pub fn new(config: Config, random: RandomPtr) -> Self {
+		let crypto = Crypto::new("test", random.clone());
+		Self {
 			random: random,
 			config: config,
 			crypto: crypto,
+			provider: Box::new(ProviderOIDC::new()),
 		}
 	}
 }

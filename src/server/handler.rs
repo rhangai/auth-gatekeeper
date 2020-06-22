@@ -1,5 +1,5 @@
 use super::state::State;
-use crate::config;
+use crate::config::Config;
 use crate::error::Error;
 use crate::util::crypto;
 use actix_web::{cookie, web, HttpMessage, HttpRequest, HttpResponse, Responder};
@@ -37,12 +37,11 @@ async fn validate(state: web::Data<State>) -> Result<impl Responder, Error> {
 }
 
 pub struct Handler {
-	config: config::Config,
+	config: Config,
 }
 
 impl Handler {
-	pub fn new() -> Handler {
-		let config = config::Config::new();
+	pub fn new(config: Config) -> Handler {
 		Handler { config: config }
 	}
 
