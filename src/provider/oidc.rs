@@ -6,6 +6,8 @@ use reqwest::Url;
 #[derive(Debug)]
 pub struct ProviderOIDC {
 	client: reqwest::Client,
+	client_id: String,
+	client_secret: String,
 	auth_url: Url,
 	token_url: Url,
 	userinfo_url: Url,
@@ -23,6 +25,8 @@ impl ProviderOIDC {
 
 		Ok(Self {
 			client: reqwest::Client::new(),
+			client_id: config.provider_client_id.clone(),
+			client_secret: config.provider_client_secret.clone(),
 			auth_url: auth_url,
 			token_url: token_url,
 			userinfo_url: userinfo_url,
@@ -59,7 +63,8 @@ impl Provider for ProviderOIDC {
 			query_pairs
 				.append_pair("response_type", "code")
 				.append_pair("scope", "openid email profile")
-				.append_pair("client_id", "");
+				.append_pair("client_id", &self.client_id)
+				.append_pair("redirect_uri", "http://localhost:8088/callback");
 			if !state.is_empty() {
 				query_pairs.append_pair("state", &state);
 			}

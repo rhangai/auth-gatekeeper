@@ -27,9 +27,7 @@ async fn login(
 ) -> Result<impl Responder, Error> {
 	let state_str = State::serialize_state(&data.crypto, query.url.clone())?;
 	let url = data.provider.get_authorization_url(state_str);
-	let response = HttpResponse::TemporaryRedirect()
-		.header("location", url)
-		.finish();
+	let response = HttpResponse::Found().header("location", url).finish();
 	Ok(response)
 
 	// let mut builder = HttpResponse::Ok();
@@ -74,7 +72,7 @@ async fn callback(
 		return Ok(HttpResponse::Unauthorized().finish());
 	}
 
-	let mut builder = HttpResponse::Ok();
+	let mut builder = HttpResponse::Found();
 
 	Response::token_set_add_cookies(&mut builder, &data, &token_set.as_ref().unwrap());
 
