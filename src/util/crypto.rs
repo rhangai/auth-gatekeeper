@@ -107,9 +107,9 @@ impl Crypto {
 		Ok(decrypted_text)
 	}
 
-	/**
-	 * Get a new cipher to use
-	 */
+	///
+	/// Get a new cipher to use
+	///
 	fn get_cipher(key: &[u8]) -> Result<LessSafeKey, Error> {
 		let unbound_key = match UnboundKey::new(&AES_256_GCM, &key) {
 			Ok(k) => k,
@@ -118,7 +118,9 @@ impl Crypto {
 		Ok(LessSafeKey::new(unbound_key))
 	}
 
+	///
 	/// Get a new nonce using the given bytes
+	///
 	fn get_nonce(bytes: &[u8]) -> Result<Nonce, Error> {
 		match Nonce::try_assume_unique_for_key(&bytes) {
 			Ok(k) => Ok(k),
