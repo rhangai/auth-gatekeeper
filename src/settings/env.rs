@@ -1,29 +1,50 @@
 use config::{Source, Value};
 use std::collections::HashMap;
 
+pub struct EnvironmentConfigOptions<'a> {
+	prefix: &'a str,
+	submatchers: &'a [&'static str],
+}
+
 #[derive(Clone, Debug)]
 pub struct EnvironmentConfig {
-	prefix: String,
-	submatchers: &'static [&'static str],
+	config: HashMap<String, Value>,
 }
 
 impl EnvironmentConfig {
-	pub fn with_prefix(prefix: &str, submatchers: &'static [&'static str]) -> Self {
-		Self {
-			prefix: prefix.to_string(),
+	pub fn with_prefix(prefix: &str, submatchers: &[&'static str]) -> Self {
+		let options = EnvironmentConfigOptions {
+			prefix: prefix,
 			submatchers: submatchers,
+		};
+		Self {
+			config: Self::collect_config(&options),
 		}
 	}
 
-	fn transform_key(&self, key: &str) -> Option<String> {
+	fn collect_config(options: &EnvironmentConfigOptions) -> HashMap<String, Value> {
+		let mut m = HashMap::new();
+		let uri: String = "the environment".into();
+		for (key, value) in std::env::vars() {
+			if value == "" {
+				continue;
+			}
+			if let Some(new_key) = Self::transform_key(options, &key) {
+				m.insert(new_key, Value::new(Some(&uri), value));
+			}
+		}
+		m
+	}
+
+	fn transform_key(options: &EnvironmentConfigOptions, key: &str) -> Option<String> {
 		let key = key.to_string().to_lowercase();
 
-		let preffix_pattern = format!("{}_", self.prefix).to_lowercase();
+		let preffix_pattern = format!("{}_", options.prefix).to_lowercase();
 		if !key.starts_with(&preffix_pattern) {
 			return None;
 		}
 		let rest = key[preffix_pattern.len()..].to_string();
-		for submatcher in self.submatchers {
+		for submatcher in options.submatchers {
 			if rest == *submatcher {
 				return Some(format!("{0}.{0}", submatcher));
 			}
@@ -43,18 +64,6 @@ impl Source for EnvironmentConfig {
 	}
 
 	fn collect(&self) -> Result<HashMap<String, Value>, config::ConfigError> {
-		let mut m = HashMap::new();
-		let uri: String = "the environment".into();
-
-		for (key, value) in std::env::vars() {
-			if value == "" {
-				continue;
-			}
-			if let Some(new_key) = self.transform_key(&key) {
-				m.insert(new_key, Value::new(Some(&uri), value));
-			}
-		}
-
-		Ok(m)
+		Ok(self.config.clone())
 	}
 }

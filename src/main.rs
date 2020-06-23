@@ -1,7 +1,3 @@
-#[macro_use]
-extern crate envconfig_derive;
-
-mod config;
 mod error;
 mod provider;
 mod server;
@@ -48,19 +44,17 @@ async fn main() -> std::io::Result<()> {
 	env_logger::init();
 	let random = util::crypto::Crypto::create_random();
 
-	let s = settings::Settings::new(random.as_ref());
-	println!("{:?}", s);
-
-	let config = config::Config::parse(random.clone());
-	if config.is_err() {
+	let settings = settings::Settings::new(random.as_ref());
+	if settings.is_err() {
+		log::error!("{}\n", settings.unwrap_err());
 		show_help();
 		std::process::exit(1);
 	}
+	let settings = settings.unwrap();
 
-	let config = config.unwrap();
-	let listen = config.listen.clone();
+	let listen = settings.listen.clone();
 	let mut server = HttpServer::new(move || {
-		let handler = server::handler::Handler::new(random.clone(), config.clone()).unwrap();
+		let handler = server::handler::Handler::new(random.clone(), settings.clone()).unwrap();
 		App::new().configure(|cfg| handler.config(cfg).unwrap())
 	});
 

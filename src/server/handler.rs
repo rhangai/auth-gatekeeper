@@ -1,8 +1,8 @@
 use super::data::Data;
 use super::http::Http;
 use super::state::State;
-use crate::config::Config;
 use crate::error::Error;
+use crate::settings::Settings;
 use crate::util::crypto;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use serde::Deserialize;
@@ -97,16 +97,16 @@ async fn validate(data: web::Data<Data>, req: HttpRequest) -> Result<impl Respon
 ///
 pub struct Handler {
 	random: crypto::RandomPtr,
-	config: Config,
+	settings: Settings,
 }
 impl Handler {
 	///
 	/// Create a new handler
 	///
-	pub fn new(random: crypto::RandomPtr, config: Config) -> Result<Handler, Error> {
+	pub fn new(random: crypto::RandomPtr, settings: Settings) -> Result<Handler, Error> {
 		Ok(Handler {
 			random: random,
-			config: config,
+			settings: settings,
 		})
 	}
 
@@ -114,7 +114,7 @@ impl Handler {
 	/// Configure the service
 	///
 	pub fn config(&self, service_config: &mut web::ServiceConfig) -> Result<(), Error> {
-		let data = Data::new(self.config.clone(), self.random.clone())?;
+		let data = Data::new(self.settings.clone(), self.random.clone())?;
 		service_config
 			.data(data)
 			.route("/login", web::get().to(login))

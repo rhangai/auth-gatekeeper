@@ -73,9 +73,9 @@ impl Http {
 		let mut access_token: Option<String> = None;
 		let mut refresh_token: Option<String> = None;
 		for cookie in cookies.iter() {
-			if cookie.name() == data.config.cookie_access_token_name {
+			if cookie.name() == data.settings.cookie.access_token_name {
 				access_token = Some(data.crypto.decrypt(cookie.value())?);
-			} else if cookie.name() == data.config.cookie_refresh_token_name {
+			} else if cookie.name() == data.settings.cookie.refresh_token_name {
 				refresh_token = Some(data.crypto.decrypt(cookie.value())?);
 			}
 			if access_token.is_some() && refresh_token.is_some() {
@@ -96,16 +96,16 @@ impl Http {
 		data: &web::Data<Data>,
 		userinfo: &serde_json::Value,
 	) -> Result<(), Error> {
-		if data.config.jwt_secret.is_some() {
+		if data.settings.jwt_secret.is_some() {
 			let auth_userinfo = jsonwebtoken::encode(
 				&jsonwebtoken::Header::default(),
 				&userinfo,
 				&jsonwebtoken::EncodingKey::from_secret(
-					data.config.jwt_secret.as_ref().unwrap().as_ref(),
+					data.settings.jwt_secret.as_ref().unwrap().as_ref(),
 				),
 			);
 			if auth_userinfo.is_err() {
-				return Err(Error::ConfigError);
+				return Err(Error::JwtDecodeError);
 			}
 			builder.header("x-auth-userinfo", auth_userinfo.unwrap());
 		} else {
@@ -123,13 +123,13 @@ impl Http {
 	) -> Result<(), Error> {
 		let cookie_access_token = Self::create_cookie(
 			data,
-			&data.config.cookie_access_token_name,
+			&data.settings.cookie.access_token_name,
 			&token_set.access_token,
 			token_set.expires_in,
 		)?;
 		let cookie_refresh_token = Self::create_cookie(
 			data,
-			&data.config.cookie_refresh_token_name,
+			&data.settings.cookie.refresh_token_name,
 			&token_set.refresh_token,
 			None,
 		)?;
@@ -147,13 +147,13 @@ impl Http {
 	) -> Result<(), Error> {
 		let cookie_access_token = Self::create_cookie(
 			data,
-			&data.config.cookie_access_token_name,
+			&data.settings.cookie.access_token_name,
 			&token_set.access_token,
 			token_set.expires_in,
 		)?;
 		let cookie_refresh_token = Self::create_cookie(
 			data,
-			&data.config.cookie_refresh_token_name,
+			&data.settings.cookie.refresh_token_name,
 			&token_set.refresh_token,
 			None,
 		)?;

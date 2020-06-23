@@ -1,7 +1,7 @@
 use super::base::{Provider, TokenSet};
 use super::oidc::ProviderOIDC;
-use crate::config::Config;
 use crate::error::Error;
+use crate::settings::Settings;
 use std::time::SystemTime;
 
 pub struct ProviderKeycloak {
@@ -12,8 +12,8 @@ impl ProviderKeycloak {
 	///
 	/// Create a new keycloak provider
 	///
-	pub fn new(config: &Config) -> Result<Self, Error> {
-		let oidc = ProviderOIDC::new(config)?;
+	pub fn new(settings: &Settings) -> Result<Self, Error> {
+		let oidc = ProviderOIDC::new(settings)?;
 		Ok(Self { oidc: oidc })
 	}
 }

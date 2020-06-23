@@ -1,6 +1,6 @@
 use super::base::{Provider, TokenSet};
-use crate::config::Config;
 use crate::error::Error;
+use crate::settings::Settings;
 use reqwest::Url;
 
 #[derive(Debug)]
@@ -18,20 +18,20 @@ impl ProviderOIDC {
 	///
 	/// Create a new OpenID Connect provider
 	///
-	pub fn new(config: &Config) -> Result<Self, Error> {
-		let auth_url =
-			Url::parse(&config.provider_auth_url).or_else(|_| Err(Error::ConfigError))?;
-		let token_url =
-			Url::parse(&config.provider_token_url).or_else(|_| Err(Error::ConfigError))?;
-		let userinfo_url =
-			Url::parse(&config.provider_userinfo_url).or_else(|_| Err(Error::ConfigError))?;
-		let callback_url =
-			Url::parse(&config.provider_callback_url).or_else(|_| Err(Error::ConfigError))?;
+	pub fn new(settings: &Settings) -> Result<Self, Error> {
+		let auth_url = Url::parse(&settings.provider.auth_url)
+			.or_else(|_| Err(Error::SettingsError(String::from("invalid url"))))?;
+		let token_url = Url::parse(&settings.provider.token_url)
+			.or_else(|_| Err(Error::SettingsError(String::from("invalid url"))))?;
+		let userinfo_url = Url::parse(&settings.provider.userinfo_url)
+			.or_else(|_| Err(Error::SettingsError(String::from("invalid url"))))?;
+		let callback_url = Url::parse(&settings.provider.callback_url)
+			.or_else(|_| Err(Error::SettingsError(String::from("invalid url"))))?;
 
 		Ok(Self {
 			client: reqwest::Client::new(),
-			client_id: config.provider_client_id.clone(),
-			client_secret: config.provider_client_secret.clone(),
+			client_id: settings.provider.client_id.clone(),
+			client_secret: settings.provider.client_secret.clone(),
 			auth_url: auth_url,
 			token_url: token_url,
 			userinfo_url: userinfo_url,

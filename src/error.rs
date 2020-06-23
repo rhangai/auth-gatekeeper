@@ -6,9 +6,9 @@ pub enum Error {
 	CryptoDeriveKeyWrongSizeError,
 	CryptoRandomBytesError,
 
-	ConfigError,
+	SettingsError(String),
 
-	SettingsError,
+	JwtDecodeError,
 
 	RequestError,
 }
@@ -25,13 +25,15 @@ impl actix_web::error::ResponseError for Error {
 impl std::fmt::Display for Error {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		#[allow(unreachable_patterns)]
-		let message: &'static str = match self {
-			Error::CryptoError => "Crypto error",
-			Error::CryptoCipherError => "Error using the cipher",
-			Error::CryptoNonceError => "Error creating the nonce",
-			Error::CryptoDeriveKeyWrongSizeError => "Error creating the nonce",
-			Error::CryptoRandomBytesError => "Error creating the nonce",
-			_ => "Error",
+		let message: String = match self {
+			Error::CryptoError => String::from("Crypto error"),
+			Error::CryptoCipherError => String::from("Error using the cipher"),
+			Error::CryptoNonceError => String::from("Error creating the nonce"),
+			Error::CryptoDeriveKeyWrongSizeError => String::from("Error creating the nonce"),
+			Error::CryptoRandomBytesError => String::from("Error creating the nonce"),
+
+			Error::SettingsError(ref message) => format!("SettingsError: {}", &message),
+			_ => String::from("Error"),
 		};
 		write!(f, "{}", message)
 	}

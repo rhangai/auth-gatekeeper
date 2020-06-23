@@ -1,18 +1,36 @@
 mod args;
 mod env;
+
 use crate::error::Error;
-use crate::util::crypto::RandomPtr;
 use args::ArgsConfig;
 use env::EnvironmentConfig;
 use serde::Deserialize;
 
-#[derive(Debug, Deserialize)]
+///
+/// Settings
+///
+#[derive(Clone, Debug, Deserialize)]
+pub struct Settings {
+	pub listen: String,
+	pub secret: String,
+	pub jwt_secret: Option<String>,
+	pub cookie: SettingsCookie,
+	pub provider: SettingsProvider,
+}
+
+///
+/// Settings for cookies
+///
+#[derive(Clone, Debug, Deserialize)]
 pub struct SettingsCookie {
 	pub access_token_name: String,
 	pub refresh_token_name: String,
 }
 
-#[derive(Debug, Deserialize)]
+///
+/// Settings for the provider
+///
+#[derive(Clone, Debug, Deserialize)]
 pub struct SettingsProvider {
 	pub provider: String,
 	pub client_id: String,
@@ -23,20 +41,11 @@ pub struct SettingsProvider {
 	pub callback_url: String,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct Settings {
-	pub listen: String,
-	pub secret: String,
-	pub jwt_secret: Option<String>,
-	pub cookie: SettingsCookie,
-	pub provider: SettingsProvider,
-}
-
 impl Settings {
 	pub fn new(rand: &dyn ring::rand::SecureRandom) -> Result<Self, Error> {
 		match Self::new_impl(rand) {
 			Ok(s) => Ok(s),
-			Err(_e) => Err(Error::SettingsError),
+			Err(_e) => Err(Error::SettingsError(_e.to_string())),
 		}
 	}
 
