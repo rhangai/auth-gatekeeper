@@ -5,6 +5,7 @@ mod config;
 mod error;
 mod provider;
 mod server;
+mod settings;
 mod util;
 
 use actix_web::{App, HttpServer};
@@ -45,8 +46,11 @@ Environment Variables:
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
 	env_logger::init();
-
 	let random = util::crypto::Crypto::create_random();
+
+	let s = settings::Settings::new(random.as_ref());
+	println!("{:?}", s);
+
 	let config = config::Config::parse(random.clone());
 	if config.is_err() {
 		show_help();

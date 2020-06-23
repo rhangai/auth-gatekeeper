@@ -8,6 +8,8 @@ pub enum Error {
 
 	ConfigError,
 
+	SettingsError,
+
 	RequestError,
 }
 
