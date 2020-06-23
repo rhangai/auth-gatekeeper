@@ -11,5 +11,5 @@ services:
 
 ## Configuration
 
+-   `AUTH_GATEKEEPER_SECRET`: Secrets to encrypt the cookies (If not set, a random one will be used everytime invalidating every session)
 -   `AUTH_GATEKEEPER_PROVIDER`: Provider for the gatekeeper. `oidc` or `keycloak`
--   `AUTH*GATEKEEPER_PROVIDER*

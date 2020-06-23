@@ -13,9 +13,11 @@ RUN apt-get update && \
 	apt-get install -y curl supervisor && \
 	rm -rf /var/lib/apt/lists/*
 
-COPY ./docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-COPY ./docker/auth-gatekeeper etc/nginx/auth-gatekeeper
+COPY ./docker/nginx/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY ./docker/nginx/upstream.conf /etc/nginx/conf.d/auth-gatekeeper-upstrea.conf
+COPY ./docker/nginx/auth-gatekeeper /etc/nginx/auth-gatekeeper
 COPY --from=builder /opt/auth-gatekeeper/target/release/auth-gatekeeper /opt/auth-gatekeeper/auth-gatekeeper
 
-ENV AUTH_GATEKEEPER_LISTEN=unix:/var/run/auth-gatekeeper.sock,http://0.0.0.0:8088
+RUN mkdir -p /var/run/auth-gatekeeper && chown nginx:nginx /var/run/auth-gatekeeper
+ENV AUTH_GATEKEEPER_LISTEN=unix:/var/run/auth-gatekeeper/server.sock
 CMD ["/usr/bin/supervisord", "-n"]

@@ -9,6 +9,7 @@ use serde::Deserialize;
 
 #[derive(Deserialize)]
 struct LoginQuery {
+	state: Option<String>,
 	url: Option<String>,
 }
 
@@ -25,7 +26,11 @@ async fn login(
 	data: web::Data<Data>,
 	query: web::Query<LoginQuery>,
 ) -> Result<impl Responder, Error> {
-	let state_str = State::serialize_state(&data.crypto, query.url.clone())?;
+	let state_str = if query.state.is_some() {
+		query.state.as_ref().unwrap().clone()
+	} else {
+		State::serialize_state(&data.crypto, query.url.clone())?
+	};
 	let url = data.provider.get_authorization_url(state_str);
 	let response = HttpResponse::Found().header("location", url).finish();
 	Ok(response)
