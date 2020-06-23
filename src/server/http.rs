@@ -20,7 +20,7 @@ impl Http {
 		data: &web::Data<Data>,
 	) -> Result<Option<HttpRequestRefreshInfo>, Error> {
 		// Check for the token_set
-		let token_set_result = Self::request_get_token_set(&req, &data)?;
+		let token_set_result = Self::request_get_token_set(&req, &data).unwrap_or(None);
 		if token_set_result.is_none() {
 			return Ok(None);
 		}

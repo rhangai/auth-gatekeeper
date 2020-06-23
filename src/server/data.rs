@@ -13,7 +13,7 @@ pub struct Data {
 
 impl Data {
 	pub fn new(config: Config, random: RandomPtr) -> Result<Self, Error> {
-		let crypto = Crypto::new("test", random.clone());
+		let crypto = Crypto::new(&config.secret.as_ref().unwrap(), random.clone());
 		let provider = create_provider(&config)?;
 		Ok(Self {
 			random: random,

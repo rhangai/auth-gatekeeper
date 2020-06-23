@@ -62,6 +62,9 @@ async fn callback(
 				location = state.unwrap().url.unwrap_or(location);
 			}
 		}
+		if location.is_empty() {
+			location = String::from("/");
+		}
 		builder.header("location", location);
 	}
 	Ok(builder.finish())
@@ -95,8 +98,7 @@ impl Handler {
 	///
 	/// Create a new handler
 	///
-	pub fn new(config: Config) -> Result<Handler, Error> {
-		let random = crypto::Crypto::create_random();
+	pub fn new(random: crypto::RandomPtr, config: Config) -> Result<Handler, Error> {
 		Ok(Handler {
 			random: random,
 			config: config,

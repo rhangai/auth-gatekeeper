@@ -15,6 +15,7 @@ impl std::error::Error for Error {}
 
 impl actix_web::error::ResponseError for Error {
 	fn error_response(&self) -> actix_web::HttpResponse {
+		println!("Error {}", self);
 		actix_web::HttpResponse::InternalServerError().finish()
 	}
 }

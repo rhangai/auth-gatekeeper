@@ -1,7 +1,11 @@
 FROM rust:1.44 as builder
 WORKDIR /opt/auth-gatekeeper
-ADD ./src /opt/auth-gatekeeper/src
 ADD ./Cargo.toml ./Cargo.lock /opt/auth-gatekeeper/
+RUN cargo fetch --locked && \
+	mkdir -p src && \
+	echo "fn main() {}" > src/main.rs && \
+	cargo build --release
+ADD ./src /opt/auth-gatekeeper/src
 RUN cargo build --release
 
 FROM nginx
@@ -13,5 +17,5 @@ COPY ./docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY ./docker/auth-gatekeeper etc/nginx/auth-gatekeeper
 COPY --from=builder /opt/auth-gatekeeper/target/release/auth-gatekeeper /opt/auth-gatekeeper/auth-gatekeeper
 
-ENV AUTH_GATEKEEPER_LISTEN=unix:/var/run/auth-gatekeeper.sock
+ENV AUTH_GATEKEEPER_LISTEN=unix:/var/run/auth-gatekeeper.sock,http://0.0.0.0:8088
 CMD ["/usr/bin/supervisord", "-n"]

@@ -1,14 +1,29 @@
-#[derive(Clone)]
+use crate::util::crypto::RandomPtr;
+use envconfig::Envconfig;
+
+#[derive(Debug, Clone, Envconfig)]
 pub struct Config {
-	pub cookie_secret: String,
+	#[envconfig(from = "AUTH_GATEKEEPER_LISTEN", default = "http://127.0.0.1:8088")]
+	pub listen: String,
+	#[envconfig(from = "AUTH_GATEKEEPER_SECRET")]
+	pub secret: Option<String>,
+	#[envconfig(from = "AUTH_GATEKEEPER_COOKIE_ACCESS_TOKEN_NAME", default = "sat")]
 	pub cookie_access_token_name: String,
+	#[envconfig(from = "AUTH_GATEKEEPER_COOKIE_REFRESH_TOKEN_NAME", default = "srt")]
 	pub cookie_refresh_token_name: String,
+	#[envconfig(from = "AUTH_GATEKEEPER_PROVIDER", default = "oidc")]
 	pub provider: String,
+	#[envconfig(from = "AUTH_GATEKEEPER_PROVIDER_CLIENT_ID")]
 	pub provider_client_id: String,
+	#[envconfig(from = "AUTH_GATEKEEPER_PROVIDER_CLIENT_SECRET")]
 	pub provider_client_secret: String,
+	#[envconfig(from = "AUTH_GATEKEEPER_PROVIDER_AUTH_URL")]
 	pub provider_auth_url: String,
+	#[envconfig(from = "AUTH_GATEKEEPER_PROVIDER_TOKEN_URL")]
 	pub provider_token_url: String,
+	#[envconfig(from = "AUTH_GATEKEEPER_PROVIDER_USERINFO_URL")]
 	pub provider_userinfo_url: String,
+	#[envconfig(from = "AUTH_GATEKEEPER_PROVIDER_CALLBACK_URL")]
 	pub provider_callback_url: String,
 	// pub provider_jwks_url: String,
 	// pub api: String,
@@ -17,24 +32,18 @@ pub struct Config {
 }
 
 impl Config {
-	pub fn new() -> Config {
-		Config {
-			cookie_secret: String::from("oi"),
-			cookie_access_token_name: String::from("sat"),
-			cookie_refresh_token_name: String::from("srt"),
-			provider: String::from("keycloak"),
-			provider_client_id: String::from("test"),
-			provider_client_secret: String::from("ccc6f1dd-662e-451f-8948-dcf3b726986d"),
-			provider_auth_url: String::from(
-				"http://auth.honest.localhost/auth/realms/honest/protocol/openid-connect/auth",
-			),
-			provider_token_url: String::from(
-				"http://auth.honest.localhost/auth/realms/honest/protocol/openid-connect/token",
-			),
-			provider_userinfo_url: String::from(
-				"http://auth.honest.localhost/auth/realms/honest/protocol/openid-connect/userinfo",
-			),
-			provider_callback_url: String::from("http://localhost:8088/callback"),
+	pub fn parse(random: RandomPtr) -> Config {
+		let mut config = Config::init().unwrap();
+		if config.secret.is_none() {
+			config.secret = Some(generate_random_secret(&random, 32));
 		}
+		config
 	}
+}
+
+fn generate_random_secret(random: &RandomPtr, size: usize) -> String {
+	let mut bytes: Vec<u8> = Vec::with_capacity(size);
+	bytes.resize(size, 0);
+	random.fill(&mut bytes).unwrap();
+	return base64::encode(bytes);
 }
