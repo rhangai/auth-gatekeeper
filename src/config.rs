@@ -7,6 +7,8 @@ pub struct Config {
 	pub listen: String,
 	#[envconfig(from = "AUTH_GATEKEEPER_SECRET")]
 	pub secret: Option<String>,
+	#[envconfig(from = "AUTH_GATEKEEPER_JWT_SECRET")]
+	pub jwt_secret: Option<String>,
 	#[envconfig(from = "AUTH_GATEKEEPER_COOKIE_ACCESS_TOKEN_NAME", default = "sat")]
 	pub cookie_access_token_name: String,
 	#[envconfig(from = "AUTH_GATEKEEPER_COOKIE_REFRESH_TOKEN_NAME", default = "srt")]

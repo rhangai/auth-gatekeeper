@@ -80,7 +80,7 @@ async fn validate(data: web::Data<Data>, req: HttpRequest) -> Result<impl Respon
 	}
 	let refresh_info = refresh_info_result.unwrap();
 	let mut builder = HttpResponse::Ok();
-	builder.header("x-auth-userinfo", refresh_info.userinfo.to_string());
+	Http::response_set_userinfo(&mut builder, &data, &refresh_info.userinfo)?;
 	if refresh_info.token_set.is_some() {
 		Http::response_add_x_headers(&mut builder, &data, &refresh_info.token_set.unwrap())?;
 	}

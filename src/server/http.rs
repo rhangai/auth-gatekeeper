@@ -91,6 +91,31 @@ impl Http {
 	///
 	/// Add the cookies from the token set to the response
 	///
+	pub fn response_set_userinfo(
+		builder: &mut ResponseBuilder,
+		data: &web::Data<Data>,
+		userinfo: &serde_json::Value,
+	) -> Result<(), Error> {
+		if data.config.jwt_secret.is_some() {
+			let auth_userinfo = jsonwebtoken::encode(
+				&jsonwebtoken::Header::default(),
+				&userinfo,
+				&jsonwebtoken::EncodingKey::from_secret(
+					data.config.jwt_secret.as_ref().unwrap().as_ref(),
+				),
+			);
+			if auth_userinfo.is_err() {
+				return Err(Error::ConfigError);
+			}
+			builder.header("x-auth-userinfo", auth_userinfo.unwrap());
+		} else {
+			builder.header("x-auth-userinfo", userinfo.to_string());
+		}
+		Ok(())
+	}
+	///
+	/// Add the cookies from the token set to the response
+	///
 	pub fn response_add_cookies(
 		builder: &mut ResponseBuilder,
 		data: &web::Data<Data>,
