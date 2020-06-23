@@ -1,3 +1,4 @@
+use crate::error::Error;
 use crate::util::crypto::RandomPtr;
 use envconfig::Envconfig;
 
@@ -34,12 +35,19 @@ pub struct Config {
 }
 
 impl Config {
-	pub fn parse(random: RandomPtr) -> Config {
-		let mut config = Config::init().unwrap();
+	pub fn parse(random: RandomPtr) -> Result<Config, Error> {
+		let config = Config::init();
+
+		if config.is_err() {
+			log::error!("{}", config.unwrap_err());
+			return Err(Error::ConfigError);
+		}
+
+		let mut config = config.unwrap();
 		if config.secret.is_none() {
 			config.secret = Some(generate_random_secret(&random, 32));
 		}
-		config
+		Ok(config)
 	}
 }
 
