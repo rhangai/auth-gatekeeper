@@ -1,9 +1,10 @@
 use crate::error::Error;
-use ring::aead::{LessSafeKey, Nonce, UnboundKey, AES_256_GCM};
+use ring::aead::{Algorithm, LessSafeKey, Nonce, UnboundKey, AES_256_GCM};
 
 pub type RandomPtr = std::sync::Arc<dyn ring::rand::SecureRandom + Sync + Send>;
 
 const ITERATIONS: u32 = 4;
+static ALGORITHM: &Algorithm = &AES_256_GCM;
 
 /// Crypto functions
 pub struct Crypto {
@@ -15,7 +16,7 @@ pub struct Crypto {
 
 impl Crypto {
 	///
-	/// Create a new crypto
+	/// Create a new crypto using the secret and the random
 	///
 	pub fn new(secret: &str, random: RandomPtr) -> Crypto {
 		Crypto {
@@ -29,7 +30,6 @@ impl Crypto {
 	pub fn create_random() -> RandomPtr {
 		std::sync::Arc::new(ring::rand::SystemRandom::new())
 	}
-
 	///
 	/// Encrypt some data
 	///
@@ -46,9 +46,8 @@ impl Crypto {
 		let nonce_bytes = &encrypted[1..13];
 		let salt_bytes = &encrypted[13..77];
 
-		let mut key: Vec<u8> = Self::allocate_bytes(32);
-		self.get_derived_key(
-			&mut key,
+		let key = self.get_derived_key(
+			ALGORITHM.key_len(),
 			salt_bytes,
 			ITERATIONS,
 			ring::pbkdf2::PBKDF2_HMAC_SHA512,
@@ -81,9 +80,8 @@ impl Crypto {
 		let nonce_bytes = &encrypted[1..13];
 		let salt_bytes = &encrypted[13..77];
 
-		let mut key: Vec<u8> = Self::allocate_bytes(32);
-		self.get_derived_key(
-			&mut key,
+		let key = self.get_derived_key(
+			ALGORITHM.key_len(),
 			salt_bytes,
 			ITERATIONS,
 			ring::pbkdf2::PBKDF2_HMAC_SHA512,
@@ -111,7 +109,7 @@ impl Crypto {
 	/// Get a new cipher to use
 	///
 	fn get_cipher(key: &[u8]) -> Result<LessSafeKey, Error> {
-		let unbound_key = match UnboundKey::new(&AES_256_GCM, &key) {
+		let unbound_key = match UnboundKey::new(ALGORITHM, &key) {
 			Ok(k) => k,
 			Err(_e) => return Err(Error::CryptoCipherError),
 		};
@@ -132,23 +130,24 @@ impl Crypto {
 	///
 	fn get_derived_key(
 		&self,
-		out_key: &mut [u8],
+		size: usize,
 		salt: &[u8],
 		iterations: u32,
 		algoritm: ring::pbkdf2::Algorithm,
-	) -> Result<(), Error> {
+	) -> Result<Vec<u8>, Error> {
 		let iteration_non_zero = std::num::NonZeroU32::new(iterations);
 		if iteration_non_zero.is_none() {
 			return Err(Error::CryptoDeriveKeyWrongSizeError);
 		}
+		let mut key: Vec<u8> = Self::allocate_bytes(size);
 		ring::pbkdf2::derive(
 			algoritm,
 			iteration_non_zero.unwrap(),
 			salt,
 			self.secret.as_bytes(),
-			out_key,
+			&mut key,
 		);
-		Ok(())
+		Ok(key)
 	}
 	///
 	/// Fill the buffer with random data
