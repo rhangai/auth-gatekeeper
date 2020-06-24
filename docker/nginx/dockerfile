@@ -15,10 +15,13 @@ RUN apt-get update && \
 	rm -rf /var/lib/apt/lists/*
 
 COPY ./docker/nginx/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-COPY ./docker/nginx/upstream.conf /etc/nginx/conf.d/auth-gatekeeper-upstream.conf
+COPY ./docker/nginx/auth-gatekeeper-upstream.conf /etc/nginx/conf.d/auth-gatekeeper-upstream.conf
 COPY ./docker/nginx/auth-gatekeeper /etc/nginx/auth-gatekeeper
 COPY --from=builder /opt/auth-gatekeeper/target/release/auth-gatekeeper /opt/auth-gatekeeper/auth-gatekeeper
 
 RUN mkdir -p /var/run/auth-gatekeeper && chown nginx:nginx /var/run/auth-gatekeeper
 ENV AUTH_GATEKEEPER_LISTEN=unix:/var/run/auth-gatekeeper/server.sock
+
+COPY ./docker/nginx/docker-entrypoint.sh /docker-entrypoint.sh
+ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["/usr/bin/supervisord", "-n"]

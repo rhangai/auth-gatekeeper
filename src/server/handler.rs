@@ -133,8 +133,8 @@ impl Handler {
 		service_config
 			.data(data)
 			.route("/login", web::get().to(login))
-			.route("/callback", web::get().to(callback))
-			.route("/validate", web::get().to(validate));
+			.route("/auth/callback", web::get().to(callback))
+			.route("/auth/validate", web::get().to(validate));
 		Ok(())
 	}
 }
