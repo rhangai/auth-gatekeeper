@@ -56,9 +56,15 @@ async fn callback(
 	if token_set.is_none() {
 		return Ok(HttpResponse::Unauthorized().finish());
 	}
+	let token_set = token_set.unwrap();
+
+	// Check for id token to call the api
+	if let Some(ref id_token) = token_set.id_token {
+		data.api.on_id_token(id_token).await?;
+	}
 
 	let mut builder = HttpResponse::Found();
-	Http::response_add_cookies(&mut builder, &data, &token_set.as_ref().unwrap())?;
+	Http::response_add_cookies(&mut builder, &data, &token_set)?;
 	{
 		let mut location: String = String::from("/");
 		if query.state.is_some() {
@@ -87,7 +93,11 @@ async fn validate(data: web::Data<Data>, req: HttpRequest) -> Result<impl Respon
 	let mut builder = HttpResponse::Ok();
 	Http::response_set_userinfo(&mut builder, &data, &refresh_info.userinfo)?;
 	if refresh_info.token_set.is_some() {
-		Http::response_add_x_headers(&mut builder, &data, &refresh_info.token_set.unwrap())?;
+		let token_set = refresh_info.token_set.as_ref().unwrap();
+		Http::response_add_x_headers(&mut builder, &data, token_set)?;
+		if let Some(ref id_token) = token_set.id_token {
+			data.api.on_id_token(id_token).await?;
+		}
 	}
 	Ok(builder.finish())
 }

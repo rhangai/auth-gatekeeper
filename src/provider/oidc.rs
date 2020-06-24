@@ -66,6 +66,7 @@ impl ProviderOIDC {
 			access_token: access_token.unwrap().to_owned(),
 			refresh_token: refresh_token.unwrap().to_owned(),
 			expires_in: body["expires_in"].as_i64(),
+			id_token: None,
 		}))
 	}
 }

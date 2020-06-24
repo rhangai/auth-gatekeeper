@@ -83,6 +83,7 @@ impl Http {
 					access_token: access_token.unwrap(),
 					refresh_token: refresh_token.unwrap(),
 					expires_in: None,
+					id_token: None,
 				}));
 			}
 		}

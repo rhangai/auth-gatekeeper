@@ -8,6 +8,7 @@ pub struct TokenSet {
 	pub access_token: String,
 	pub refresh_token: String,
 	pub expires_in: Option<i64>,
+	pub id_token: Option<serde_json::Value>,
 }
 
 #[async_trait::async_trait]

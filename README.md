@@ -6,7 +6,7 @@ Usage with docker-compose
 version: '3.7'
 services:
     proxy:
-        image: nginx
+        image: rhangai/auth-gatekeeper:nginx
 ```
 
 ## Configuration

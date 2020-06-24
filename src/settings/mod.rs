@@ -14,8 +14,17 @@ pub struct Settings {
 	pub listen: String,
 	pub secret: String,
 	pub jwt_secret: Option<String>,
+	pub api: SettingsApi,
 	pub cookie: SettingsCookie,
 	pub provider: SettingsProvider,
+}
+
+///
+/// Endpoint to call when a new IDToken is found
+///
+#[derive(Clone, Debug, Deserialize)]
+pub struct SettingsApi {
+	pub id_token_endpoint: Option<String>,
 }
 
 ///

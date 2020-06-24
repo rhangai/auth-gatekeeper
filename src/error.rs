@@ -9,6 +9,7 @@ pub enum Error {
 	SettingsError(String),
 	SettingsShowHelpError,
 
+	JwtEncodeError,
 	JwtDecodeError,
 
 	RequestError,
