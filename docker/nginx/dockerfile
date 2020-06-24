@@ -15,7 +15,7 @@ RUN apt-get update && \
 	rm -rf /var/lib/apt/lists/*
 
 COPY ./docker/nginx/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-COPY ./docker/nginx/upstream.conf /etc/nginx/conf.d/auth-gatekeeper-upstrea.conf
+COPY ./docker/nginx/upstream.conf /etc/nginx/conf.d/auth-gatekeeper-upstream.conf
 COPY ./docker/nginx/auth-gatekeeper /etc/nginx/auth-gatekeeper
 COPY --from=builder /opt/auth-gatekeeper/target/release/auth-gatekeeper /opt/auth-gatekeeper/auth-gatekeeper
 

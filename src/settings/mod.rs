@@ -55,7 +55,10 @@ impl Settings {
 		match Self::new_impl(rand) {
 			Ok(s) => s,
 			Err(e) => {
-				log::error!("{}", e);
+				if let Error::SettingsShowHelpError = e {
+				} else {
+					log::error!("{}", e);
+				}
 				ArgsConfig::show_help();
 				std::process::exit(1)
 			}
