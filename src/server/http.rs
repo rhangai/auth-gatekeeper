@@ -4,6 +4,11 @@ use crate::provider::TokenSet;
 use actix_http::ResponseBuilder;
 use actix_web::{cookie, web, HttpMessage, HttpRequest};
 
+pub struct HttpRequestTokenSet {
+	pub access_token: Option<String>,
+	pub refresh_token: Option<String>,
+}
+
 pub struct HttpRequestRefreshInfo {
 	pub token_set: Option<TokenSet>,
 	pub userinfo: serde_json::Value,
@@ -26,20 +31,25 @@ impl Http {
 		}
 		let token_set = token_set_result.unwrap();
 
-		// Check for the userinfo, if everything is ok, return it
-		let userinfo = data.provider.userinfo(&token_set.access_token).await?;
-		if userinfo.is_some() {
-			return Ok(Some(HttpRequestRefreshInfo {
-				token_set: None,
-				userinfo: userinfo.unwrap(),
-			}));
+		// If there is an access token, try to get the userinfo
+		if let Some(ref access_token) = token_set.access_token {
+			let userinfo = data.provider.userinfo(&access_token).await?;
+			if userinfo.is_some() {
+				return Ok(Some(HttpRequestRefreshInfo {
+					token_set: None,
+					userinfo: userinfo.unwrap(),
+				}));
+			}
+		}
+
+		// If no refresh token, then return nothign
+		if token_set.refresh_token.is_none() {
+			return Ok(None);
 		}
 
 		// Try to get another refresh_token
-		let new_token_set_result = data
-			.provider
-			.grant_refresh_token(&token_set.refresh_token)
-			.await?;
+		let refresh_token = token_set.refresh_token.unwrap();
+		let new_token_set_result = data.provider.grant_refresh_token(&refresh_token).await?;
 		if new_token_set_result.is_none() {
 			return Ok(None);
 		}
@@ -63,7 +73,7 @@ impl Http {
 	pub fn request_get_token_set(
 		req: &HttpRequest,
 		data: &web::Data<Data>,
-	) -> Result<Option<TokenSet>, Error> {
+	) -> Result<Option<HttpRequestTokenSet>, Error> {
 		let cookies_result = req.cookies();
 		if cookies_result.is_err() {
 			return Ok(None);
@@ -79,15 +89,13 @@ impl Http {
 				refresh_token = Some(data.crypto.decrypt(cookie.value())?);
 			}
 			if access_token.is_some() && refresh_token.is_some() {
-				return Ok(Some(TokenSet {
-					access_token: access_token.unwrap(),
-					refresh_token: refresh_token.unwrap(),
-					expires_in: None,
-					id_token: None,
-				}));
+				break;
 			}
 		}
-		Ok(None)
+		return Ok(Some(HttpRequestTokenSet {
+			access_token: access_token,
+			refresh_token: refresh_token,
+		}));
 	}
 	///
 	/// Add the cookies from the token set to the response

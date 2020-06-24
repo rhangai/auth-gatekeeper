@@ -95,8 +95,13 @@ async fn validate(data: web::Data<Data>, req: HttpRequest) -> Result<impl Respon
 	if refresh_info.token_set.is_some() {
 		let token_set = refresh_info.token_set.as_ref().unwrap();
 		Http::response_add_x_headers(&mut builder, &data, token_set)?;
+
+		// If there is an id_token on the response
 		if let Some(ref id_token) = token_set.id_token {
-			data.api.on_id_token(id_token).await?;
+			let result = data.api.on_id_token(id_token).await;
+			if result.is_err() {
+				log::error!("{}", result.unwrap_err());
+			}
 		}
 	}
 	Ok(builder.finish())

@@ -24,6 +24,7 @@ async fn main() -> std::io::Result<()> {
 		App::new().configure(|cfg| handler.config(cfg).unwrap())
 	});
 
+	// Check the urls to listen to
 	let listen_list = listen.split_terminator(',');
 	for listen in listen_list {
 		let url = Url::parse(listen);

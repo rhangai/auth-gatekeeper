@@ -51,24 +51,28 @@ impl From<config::ConfigError> for Error {
 	}
 }
 
+/// JWT Encode decode error
 impl From<jsonwebtoken::errors::Error> for Error {
 	fn from(error: jsonwebtoken::errors::Error) -> Error {
 		Error::JwtError(error)
 	}
 }
 
+/// JSON serialize/dererialize error
 impl From<serde_json::Error> for Error {
 	fn from(error: serde_json::Error) -> Error {
 		Error::JsonError(error)
 	}
 }
 
+/// Request error
 impl From<reqwest::Error> for Error {
 	fn from(error: reqwest::Error) -> Error {
 		Error::RequestError(error)
 	}
 }
 
+/// Converts from an URL parser error
 impl From<url::ParseError> for Error {
 	fn from(error: url::ParseError) -> Error {
 		Error::SettingsUrlParseError(error)

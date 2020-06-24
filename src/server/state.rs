@@ -10,16 +10,14 @@ pub struct State {
 impl State {
 	pub fn serialize_state(crypto: &Crypto, url: Option<String>) -> Result<String, Error> {
 		let state = Self { url: url };
-		let request_state_string =
-			serde_json::to_string(&state).or_else(|_| Err(Error::CryptoCipherError))?;
+		let request_state_string = serde_json::to_string(&state)?;
 		let request_state_string_encrypted = crypto.encrypt(&request_state_string)?;
 		Ok(request_state_string_encrypted)
 	}
 
 	pub fn deserialize_state(crypto: &Crypto, token: &str) -> Result<Self, Error> {
 		let token_decrypted = crypto.decrypt(token)?;
-		let request_state: Self =
-			serde_json::from_str(&token_decrypted).or_else(|_| Err(Error::CryptoCipherError))?;
+		let request_state: Self = serde_json::from_str(&token_decrypted)?;
 		Ok(request_state)
 	}
 }
