@@ -7,14 +7,80 @@ const OPTS: &[(&str, &str, &str, &str)] = &[
 	(
 		"config-env",
 		"config.env",
-		"Use env variables prefixed with ENV_PREFIX to configure",
+		"Use env variables prefixed with ENV_PREFIX to configure. Ex: '--listen' becomes ENV_PREFIX_LISTEN",
 		"ENV_PREFIX",
+	),
+	(
+		"listen",
+		"listen",
+		"Listen for the server on the given URLs (comma delimited for multiple)",
+		"URLS",
+	),
+	(
+		"secret",
+		"secret",
+		"The SECRET is used to encrypt the cookies",
+		"SECRET",
 	),
 	(
 		"jwt-secret",
 		"jwt_secret",
-		"Use TOKEN to encode the JWT used by x-auth headers",
-		"TOKEN",
+		"Use SECRET to encode the JWT used by x-auth headers",
+		"SECRET",
+	),
+	(
+		"cookie-access-token-name",
+		"cookie.access_token_name",
+		"The name of the cookie used to store the access token",
+		"NAME",
+	),
+	(
+		"cookie-refresh-token-name",
+		"cookie.refresh_token_name",
+		"The name of the cookie used to store the refresh token",
+		"NAME",
+	),
+	(
+		"provider",
+		"provider.provider",
+		"The provider to use. 'oidc' or 'keycloak'",
+		"PROVIDER",
+	),
+	(
+		"provider-client-id",
+		"provider.client_id",
+		"Client ID of the provider",
+		"CLIENT_ID",
+	),
+	(
+		"provider-client-secret",
+		"provider.client_secret",
+		"Client Secret of the provider",
+		"CLIENT_SECRET",
+	),
+	(
+		"provider-auth-url",
+		"provider.auth_url",
+		"Url of the authorization endpoint",
+		"URL",
+	),
+	(
+		"provider-token-url",
+		"provider.token_url",
+		"Url of the token endpoint",
+		"URL",
+	),
+	(
+		"provider-userinfo-url",
+		"provider.userinfo_url",
+		"Url to get the user info using the access token",
+		"URL",
+	),
+	(
+		"provider-callback-url",
+		"provider.callback_url",
+		"Url to send the user back when auth is complete",
+		"URL",
 	),
 ];
 
@@ -65,6 +131,8 @@ impl ArgsConfig {
 	}
 }
 
+///
+/// Implementaton
 impl Source for ArgsConfig {
 	fn clone_into_box(&self) -> Box<dyn Source + Send + Sync> {
 		Box::new((*self).clone())
