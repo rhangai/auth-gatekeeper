@@ -5,8 +5,9 @@ RUN cargo fetch --locked && \
 	mkdir -p src && \
 	echo "fn main() {}" > src/main.rs && \
 	cargo build --release
+
 ADD ./src /opt/auth-gatekeeper/src
-RUN cargo build --release
+RUN touch -a -m src/main.rs && cargo build --release
 
 FROM nginx
 RUN apt-get update && \ 

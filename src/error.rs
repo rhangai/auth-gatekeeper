@@ -7,6 +7,7 @@ pub enum Error {
 	CryptoRandomBytesError,
 
 	SettingsError(String),
+	SettingsShowHelpError,
 
 	JwtDecodeError,
 
@@ -36,5 +37,11 @@ impl std::fmt::Display for Error {
 			_ => String::from("Error"),
 		};
 		write!(f, "{}", message)
+	}
+}
+
+impl From<config::ConfigError> for Error {
+	fn from(error: config::ConfigError) -> Error {
+		Error::SettingsError(error.to_string())
 	}
 }

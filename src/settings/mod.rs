@@ -42,27 +42,41 @@ pub struct SettingsProvider {
 }
 
 impl Settings {
-	pub fn new(rand: &dyn ring::rand::SecureRandom) -> Result<Self, Error> {
+	pub fn new(rand: &dyn ring::rand::SecureRandom) -> Self {
 		match Self::new_impl(rand) {
-			Ok(s) => Ok(s),
-			Err(_e) => Err(Error::SettingsError(_e.to_string())),
+			Ok(s) => s,
+			Err(e) => {
+				log::error!("{}", e);
+				ArgsConfig::show_help();
+				std::process::exit(1)
+			}
 		}
 	}
 
-	fn new_impl(rand: &dyn ring::rand::SecureRandom) -> Result<Self, config::ConfigError> {
+	fn new_impl(rand: &dyn ring::rand::SecureRandom) -> Result<Self, Error> {
 		let mut s = config::Config::new();
 		s.set_default("listen", "http://127.0.0.1:8088")?;
 		s.set_default("cookie.access_token_name", "sat")?;
 		s.set_default("cookie.refresh_token_name", "srt")?;
-		s.merge(EnvironmentConfig::with_prefix(
-			"AUTH_GATEKEEPER",
-			&["cookie", "provider"],
-		))?;
-		s.merge(ArgsConfig::new())?;
+		s.set_default("provider.provider", "oidc")?;
+
+		// Use args
+		s.merge(ArgsConfig::new()?)?;
+
+		// Check if needs to parse using the env
+		if let Ok(prefix) = s.get_str("config.env") {
+			s.merge(EnvironmentConfig::with_prefix(
+				&prefix,
+				&["cookie", "provider"],
+			))?;
+		}
+
+		// If no secret is provided, use a random one
 		if s.get_str("secret").is_err() {
 			s.set("secret", generate_random_secret(rand, 32))?;
 		}
-		s.try_into()
+		let settings: Self = s.try_into()?;
+		Ok(settings)
 	}
 }
 
