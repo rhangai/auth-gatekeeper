@@ -7,6 +7,28 @@ version: '3.7'
 services:
     proxy:
         image: rhangai/auth-gatekeeper:nginx
+    environment:
+        - AUTH_GATEKEEPER_SECRET=
+        - AUTH_GATEKEEPER_PROVIDER=
+        - AUTH_GATEKEEPER_PROVIDER_CLIENT_ID=
+        - AUTH_GATEKEEPER_PROVIDER_CLIENT_SECRET=
+        - AUTH_GATEKEEPER_PROVIDER_AUTH_URL=
+        - AUTH_GATEKEEPER_PROVIDER_TOKEN_URL=
+        - AUTH_GATEKEEPER_PROVIDER_USERINFO_URL=
+        - AUTH_GATEKEEPER_PROVIDER_CALLBACK_URL=
+        - |
+            NGINX_DEFAULT_CONFIG=
+            server {
+              include auth-gatekeeper/server.conf;
+
+              root /var/www/html/;
+              index index.html;
+
+              location /restrict/ {
+                include auth-gatekeeper/auth-request.conf;
+                error_page 401 = @auth-redirect;
+              }
+            }
 ```
 
 ## Configuration
