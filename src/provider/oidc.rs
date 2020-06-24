@@ -58,9 +58,21 @@ impl ProviderOIDC {
 			access_token: access_token.unwrap().to_owned(),
 			refresh_token: refresh_token.unwrap().to_owned(),
 			expires_in: body["expires_in"].as_i64(),
-			id_token: None,
+			id_token: to_value(&body, "id_token"),
 		}))
 	}
+}
+
+fn to_value(obj: &serde_json::Value, key: &str) -> Option<serde_json::Value> {
+	let value = obj.get(key);
+	if value.is_none() {
+		return None;
+	}
+	let value = value.unwrap();
+	if *value == serde_json::Value::Null {
+		return None;
+	}
+	Some(value.clone())
 }
 
 #[async_trait::async_trait]

@@ -68,6 +68,7 @@ impl Settings {
 		s.set_default("cookie.access_token_name", "sat")?;
 		s.set_default("cookie.refresh_token_name", "srt")?;
 		s.set_default("provider.provider", "oidc")?;
+		s.set_default("api.id_token_endpoint", "")?;
 
 		// Use args
 		s.merge(ArgsConfig::new()?)?;

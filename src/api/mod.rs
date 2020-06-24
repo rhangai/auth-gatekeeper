@@ -14,7 +14,9 @@ impl Api {
 	pub fn new(settings: &Settings) -> Result<Self, Error> {
 		let mut id_token_endpoint: Option<Url> = None;
 		if let Some(ref endpoint) = settings.api.id_token_endpoint {
-			id_token_endpoint = Some(Url::parse(endpoint)?);
+			if !endpoint.is_empty() {
+				id_token_endpoint = Some(Url::parse(endpoint)?);
+			}
 		}
 
 		let mut jwt_encoding_key: Option<EncodingKey> = None;
