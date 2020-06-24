@@ -29,6 +29,12 @@ const OPTS: &[(&str, &str, &str, &str)] = &[
 		"SECRET",
 	),
 	(
+		"api-id-token-endpoint",
+		"api.id_token_endpoint",
+		"The endpoint to call everytime a new id_token is found",
+		"ENDPOINT",
+	),
+	(
 		"cookie-access-token-name",
 		"cookie.access_token_name",
 		"The name of the cookie used to store the access token",

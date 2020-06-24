@@ -336,6 +336,7 @@ dependencies = [
  "ring",
  "serde 1.0.114",
  "serde_json",
+ "url",
 ]
 
 [[package]]

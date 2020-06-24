@@ -13,6 +13,6 @@ pub fn create_provider(settings: &Settings) -> Result<Box<dyn Provider>, Error> 
 	} else if settings.provider.provider == "oidc" {
 		Ok(Box::new(ProviderOIDC::new(&settings)?))
 	} else {
-		Err(Error::SettingsError(String::from("Invalid provider")))
+		Err(Error::SettingsError("Invalid provider"))
 	}
 }

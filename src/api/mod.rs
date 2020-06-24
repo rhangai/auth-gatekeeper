@@ -14,10 +14,7 @@ impl Api {
 	pub fn new(settings: &Settings) -> Result<Self, Error> {
 		let mut id_token_endpoint: Option<Url> = None;
 		if let Some(ref endpoint) = settings.api.id_token_endpoint {
-			id_token_endpoint = Some(
-				Url::parse(endpoint)
-					.or_else(|_| Err(Error::SettingsError(String::from("invalid url"))))?,
-			);
+			id_token_endpoint = Some(Url::parse(endpoint)?);
 		}
 
 		let mut jwt_encoding_key: Option<EncodingKey> = None;
@@ -43,17 +40,15 @@ impl Api {
 
 		// If there is an encoding key, then jwt encodes it
 		if let Some(ref encoding_key) = self.jwt_encoding_key {
-			let id_token =
-				jsonwebtoken::encode(&jsonwebtoken::Header::default(), value, &encoding_key)
-					.or_else(|_| Err(Error::JwtEncodeError))?;
+			let id_token = jsonwebtoken::encode(&Header::default(), value, &encoding_key)?;
 
 			let mut map = HashMap::new();
 			map.insert("id_token", id_token);
-			data = serde_json::to_value(map).or_else(|_| Err(Error::JwtEncodeError))?;
+			data = serde_json::to_value(map)?;
 		} else {
 			let mut map = HashMap::new();
 			map.insert("id_token", value);
-			data = serde_json::to_value(map).or_else(|_| Err(Error::JwtEncodeError))?;
+			data = serde_json::to_value(map)?;
 		}
 
 		// Perform a request to the endpoint
@@ -61,8 +56,7 @@ impl Api {
 			.post(endpoint.as_str())
 			.json(&data)
 			.send()
-			.await
-			.or_else(|_| Err(Error::RequestError))?;
+			.await?;
 		Ok(())
 	}
 }

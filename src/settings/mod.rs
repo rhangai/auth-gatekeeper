@@ -76,7 +76,7 @@ impl Settings {
 		if let Ok(prefix) = s.get_str("config.env") {
 			s.merge(EnvironmentConfig::with_prefix(
 				&prefix,
-				&["cookie", "provider"],
+				&["cookie", "provider", "api"],
 			))?;
 		}
 

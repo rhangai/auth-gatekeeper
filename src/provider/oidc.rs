@@ -19,14 +19,10 @@ impl ProviderOIDC {
 	/// Create a new OpenID Connect provider
 	///
 	pub fn new(settings: &Settings) -> Result<Self, Error> {
-		let auth_url = Url::parse(&settings.provider.auth_url)
-			.or_else(|_| Err(Error::SettingsError(String::from("invalid url"))))?;
-		let token_url = Url::parse(&settings.provider.token_url)
-			.or_else(|_| Err(Error::SettingsError(String::from("invalid url"))))?;
-		let userinfo_url = Url::parse(&settings.provider.userinfo_url)
-			.or_else(|_| Err(Error::SettingsError(String::from("invalid url"))))?;
-		let callback_url = Url::parse(&settings.provider.callback_url)
-			.or_else(|_| Err(Error::SettingsError(String::from("invalid url"))))?;
+		let auth_url = Url::parse(&settings.provider.auth_url)?;
+		let token_url = Url::parse(&settings.provider.token_url)?;
+		let userinfo_url = Url::parse(&settings.provider.userinfo_url)?;
+		let callback_url = Url::parse(&settings.provider.callback_url)?;
 
 		Ok(Self {
 			client: reqwest::Client::new(),
@@ -50,12 +46,8 @@ impl ProviderOIDC {
 			.post(self.token_url.as_str())
 			.form(form)
 			.send()
-			.await;
-		let body = res
-			.unwrap()
-			.json::<serde_json::Value>()
-			.await
-			.or_else(|_| Err(Error::RequestError))?;
+			.await?;
+		let body = res.json::<serde_json::Value>().await?;
 
 		let access_token = body["access_token"].as_str();
 		let refresh_token = body["refresh_token"].as_str();
@@ -103,21 +95,19 @@ impl Provider for ProviderOIDC {
 			.await;
 
 		if res.is_err() {
-			let code = res.unwrap_err().status();
+			let error = res.unwrap_err();
+			let code = error.status();
 			if code.is_some() {
 				let status_code = code.unwrap().as_u16();
 				if status_code == 400 || status_code == 401 {
 					return Ok(None);
 				}
 			}
-			return Err(Error::RequestError);
+			return Err(Error::RequestError(error));
 		}
 
-		let body = res.unwrap().json::<serde_json::Value>().await;
-		if body.is_err() {
-			return Err(Error::RequestError);
-		}
-		Ok(Some(body.unwrap()))
+		let body = res.unwrap().json::<serde_json::Value>().await?;
+		Ok(Some(body))
 	}
 	///
 	/// Peform an authorization_code grant

@@ -6,13 +6,17 @@ pub enum Error {
 	CryptoDeriveKeyWrongSizeError,
 	CryptoRandomBytesError,
 
-	SettingsError(String),
+	SettingsError(&'static str),
+	SettingsConfigError(config::ConfigError),
+	SettingsUrlParseError(url::ParseError),
 	SettingsShowHelpError,
 
-	JwtEncodeError,
+	JwtError(jsonwebtoken::errors::Error),
 	JwtDecodeError,
 
-	RequestError,
+	JsonError(serde_json::Error),
+
+	RequestError(reqwest::Error),
 }
 
 impl std::error::Error for Error {}
@@ -34,7 +38,7 @@ impl std::fmt::Display for Error {
 			Error::CryptoDeriveKeyWrongSizeError => String::from("Error creating the nonce"),
 			Error::CryptoRandomBytesError => String::from("Error creating the nonce"),
 
-			Error::SettingsError(ref message) => format!("SettingsError: {}", &message),
+			Error::SettingsConfigError(ref error) => format!("Config Error: {}", error.to_string()),
 			_ => String::from("Error"),
 		};
 		write!(f, "{}", message)
@@ -43,6 +47,30 @@ impl std::fmt::Display for Error {
 
 impl From<config::ConfigError> for Error {
 	fn from(error: config::ConfigError) -> Error {
-		Error::SettingsError(error.to_string())
+		Error::SettingsConfigError(error)
+	}
+}
+
+impl From<jsonwebtoken::errors::Error> for Error {
+	fn from(error: jsonwebtoken::errors::Error) -> Error {
+		Error::JwtError(error)
+	}
+}
+
+impl From<serde_json::Error> for Error {
+	fn from(error: serde_json::Error) -> Error {
+		Error::JsonError(error)
+	}
+}
+
+impl From<reqwest::Error> for Error {
+	fn from(error: reqwest::Error) -> Error {
+		Error::RequestError(error)
+	}
+}
+
+impl From<url::ParseError> for Error {
+	fn from(error: url::ParseError) -> Error {
+		Error::SettingsUrlParseError(error)
 	}
 }
