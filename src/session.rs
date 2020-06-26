@@ -10,6 +10,12 @@ struct SessionTokenSet {
 	refresh_token: Option<String>,
 }
 
+enum SessionStatus {
+	Invalid,
+	New(Option<Userinfo>),
+	Logged(Option<Userinfo>),
+}
+
 bitflags! {
 	pub struct SessionFlags: u8 {
 		const X_HEADERS = 0x01;
@@ -19,23 +25,23 @@ bitflags! {
 
 pub struct Session {
 	data: web::Data<Data>,
-	token_set: Option<SessionTokenSet>,
-	token_set_renewed: bool,
+	status: SessionStatus,
 	has_session: bool,
-	userinfo: Option<Userinfo>,
+	token_set: Option<SessionTokenSet>,
+	id_token: Option<serde_json::Value>,
 }
 
 impl Session {
 	pub fn new(data: web::Data<Data>, token_set: TokenSet) -> Self {
 		Self {
 			data: data,
+			status: SessionStatus::New(None),
 			token_set: Some(SessionTokenSet {
 				access_token: Some(token_set.access_token),
 				refresh_token: Some(token_set.refresh_token),
 			}),
-			token_set_renewed: false,
 			has_session: false,
-			userinfo: None,
+			id_token: token_set.id_token,
 		}
 	}
 
@@ -44,10 +50,10 @@ impl Session {
 		let has_session = token_set.is_some();
 		Self {
 			data: data,
+			status: SessionStatus::Invalid,
 			token_set: token_set,
-			token_set_renewed: false,
 			has_session: has_session,
-			userinfo: None,
+			id_token: None,
 		}
 	}
 
@@ -86,7 +92,7 @@ impl Session {
 		if userinfo.is_none() {
 			return Ok(false);
 		}
-		self.userinfo = userinfo;
+		self.status = SessionStatus::Logged(userinfo);
 		Ok(true)
 	}
 
@@ -94,6 +100,10 @@ impl Session {
 	/// Validate the information and try to refresh the session
 	///
 	pub async fn validate(&mut self) -> Result<(), Error> {
+		// Invalidates the session
+		self.status = SessionStatus::Invalid;
+
+		// If there is no token, then it is already invalid
 		if self.token_set.is_none() {
 			return Ok(());
 		}
@@ -101,8 +111,9 @@ impl Session {
 		// If there is a token set already, try to load the userinfo
 		let token_set = self.token_set.clone().unwrap();
 		if let Some(access_token) = token_set.access_token {
-			let has_userinfo = self.load_userinfo(&access_token).await?;
-			if has_userinfo {
+			let userinfo = self.data.provider.userinfo(&access_token).await?;
+			if userinfo.is_some() {
+				self.status = SessionStatus::Logged(userinfo);
 				return Ok(());
 			}
 		}
@@ -115,17 +126,20 @@ impl Session {
 				.grant_refresh_token(&refresh_token)
 				.await?;
 			if let Some(new_token_set) = new_token_set_result {
-				let has_userinfo = self.load_userinfo(&new_token_set.access_token).await?;
-				if has_userinfo {
+				let userinfo = self
+					.data
+					.provider
+					.userinfo(&new_token_set.access_token)
+					.await?;
+				if userinfo.is_some() {
 					self.token_set = Some(SessionTokenSet {
 						access_token: Some(new_token_set.access_token),
 						refresh_token: Some(new_token_set.refresh_token),
 					});
-					self.token_set_renewed = true;
+					self.status = SessionStatus::New(userinfo);
 				}
 			}
 		}
-
 		Ok(())
 	}
 
@@ -137,20 +151,36 @@ impl Session {
 		builder: &mut ResponseBuilder,
 		flags: SessionFlags,
 	) -> Result<(), Error> {
-		if self.userinfo.is_none() {
-			if self.has_session {
-				self.response_save_session(builder, None, flags)?;
+		match self.status {
+			SessionStatus::Invalid => {
+				if self.has_session {
+					self.response_save_session(builder, None, flags)?;
+				}
+				builder.status(StatusCode::UNAUTHORIZED);
 			}
-			builder.status(StatusCode::UNAUTHORIZED);
-			return Ok(());
-		}
-		if self.token_set_renewed {
-			self.response_save_session(builder, self.token_set.clone(), flags)?;
+			SessionStatus::New(ref userinfo) => {
+				self.response_save_session(builder, self.token_set.clone(), flags)?;
+				self.response_set_userinfo(builder, &userinfo, flags)?;
+			}
+			SessionStatus::Logged(ref userinfo) => {
+				self.response_set_userinfo(builder, &userinfo, flags)?;
+			}
 		}
 		Ok(())
 	}
 	///
-	/// Save the
+	/// Save the userinfo
+	///
+	fn response_set_userinfo(
+		&self,
+		builer: &mut ResponseBuilder,
+		userinfo: &Option<Userinfo>,
+		flags: SessionFlags,
+	) -> Result<(), Error> {
+		Ok(())
+	}
+	///
+	/// Save the session
 	///
 	fn response_save_session(
 		&self,
