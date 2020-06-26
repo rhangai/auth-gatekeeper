@@ -1,8 +1,7 @@
 use super::data::Data;
-use super::http::Http;
 use super::state::State;
 use crate::error::Error;
-use crate::session::Session;
+use crate::session::{Session, SessionFlags};
 use crate::settings::Settings;
 use crate::util::crypto;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
@@ -23,12 +22,12 @@ struct CallbackQuery {
 ///
 /// Perform the login
 ///
-async fn login(
+async fn route_login(
 	data: web::Data<Data>,
 	query: web::Query<LoginQuery>,
 ) -> Result<impl Responder, Error> {
-	let state_str = if query.state.is_some() {
-		query.state.as_ref().unwrap().clone()
+	let state_str = if let Some(ref state) = query.state {
+		state.clone()
 	} else {
 		State::serialize_state(&data.crypto, query.url.clone())?
 	};
@@ -40,7 +39,7 @@ async fn login(
 ///
 /// Callback
 ///
-async fn callback(
+async fn route_callback(
 	data: web::Data<Data>,
 	query: web::Query<CallbackQuery>,
 ) -> Result<impl Responder, Error> {
@@ -59,7 +58,7 @@ async fn callback(
 	}
 	let session = Session::new(data.clone(), token_set.unwrap());
 	let mut builder = HttpResponse::Found();
-	session.response(&mut builder, 0);
+	session.response(&mut builder, SessionFlags::COOKIES);
 	{
 		let mut location: String = String::from("/");
 		if query.state.is_some() {
@@ -79,12 +78,12 @@ async fn callback(
 ///
 /// Validate the login
 ///
-async fn validate(data: web::Data<Data>, req: HttpRequest) -> Result<impl Responder, Error> {
+async fn route_validate(data: web::Data<Data>, req: HttpRequest) -> Result<impl Responder, Error> {
 	let mut session = Session::from_request(data, &req);
 	session.validate().await?;
 
 	let mut builder = HttpResponse::Ok();
-	session.response(&mut builder, 0);
+	session.response(&mut builder, SessionFlags::X_HEADERS);
 	Ok(builder.finish())
 }
 
@@ -113,9 +112,9 @@ impl Handler {
 		let data = Data::new(self.settings.clone(), self.random.clone())?;
 		service_config
 			.data(data)
-			.route("/login", web::get().to(login))
-			.route("/auth/callback", web::get().to(callback))
-			.route("/auth/validate", web::get().to(validate));
+			.route("/login", web::get().to(route_login))
+			.route("/auth/callback", web::get().to(route_callback))
+			.route("/auth/validate", web::get().to(route_validate));
 		Ok(())
 	}
 }

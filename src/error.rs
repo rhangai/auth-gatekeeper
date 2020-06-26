@@ -12,7 +12,6 @@ pub enum Error {
 	SettingsShowHelpError,
 
 	JwtError(jsonwebtoken::errors::Error),
-	JwtDecodeError,
 
 	JsonError(serde_json::Error),
 

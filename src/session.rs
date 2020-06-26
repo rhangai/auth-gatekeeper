@@ -10,6 +10,13 @@ struct SessionTokenSet {
 	refresh_token: Option<String>,
 }
 
+bitflags! {
+	pub struct SessionFlags: u8 {
+		const X_HEADERS = 0x01;
+		const COOKIES   = 0x02;
+	}
+}
+
 pub struct Session {
 	data: web::Data<Data>,
 	token_set: Option<SessionTokenSet>,
@@ -83,7 +90,9 @@ impl Session {
 		Ok(true)
 	}
 
-	/// Try to load the userinfo
+	///
+	/// Validate the information and try to refresh the session
+	///
 	pub async fn validate(&mut self) -> Result<(), Error> {
 		if self.token_set.is_none() {
 			return Ok(());
@@ -121,8 +130,9 @@ impl Session {
 	}
 
 	///
+	/// Set the response
 	///
-	pub fn response(&self, builder: &mut ResponseBuilder, flags: u32) {
+	pub fn response(&self, builder: &mut ResponseBuilder, flags: SessionFlags) {
 		if self.userinfo.is_none() {
 			builder.status(StatusCode::UNAUTHORIZED);
 			return;
