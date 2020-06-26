@@ -76,6 +76,9 @@ impl Crypto {
 			Ok(v) => v,
 			Err(_err) => return Err(Error::CryptoError),
 		};
+		if (encrypted.len() < 93) {
+			return Err(Error::CryptoError);
+		}
 		let data_range_start = 77;
 		let nonce_bytes = &encrypted[1..13];
 		let salt_bytes = &encrypted[13..77];

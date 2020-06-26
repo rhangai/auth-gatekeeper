@@ -85,17 +85,6 @@ impl Session {
 			refresh_token: refresh_token,
 		});
 	}
-
-	/// Try to load the userinfo
-	async fn load_userinfo(&mut self, access_token: &str) -> Result<bool, Error> {
-		let userinfo = self.data.provider.userinfo(&access_token).await?;
-		if userinfo.is_none() {
-			return Ok(false);
-		}
-		self.status = SessionStatus::Logged(userinfo);
-		Ok(true)
-	}
-
 	///
 	/// Validate the information and try to refresh the session
 	///
@@ -173,10 +162,15 @@ impl Session {
 	///
 	fn response_set_userinfo(
 		&self,
-		builer: &mut ResponseBuilder,
+		builder: &mut ResponseBuilder,
 		userinfo: &Option<Userinfo>,
 		flags: SessionFlags,
 	) -> Result<(), Error> {
+		if let Some(ref userinfo) = userinfo {
+			if flags.contains(SessionFlags::X_HEADERS) {
+				builder.header("x-auth-userinfo", serde_json::to_string(&userinfo.data)?);
+			}
+		}
 		Ok(())
 	}
 	///
@@ -229,12 +223,11 @@ impl Session {
 		let cookie_value = if let Some(ref v) = value {
 			self.data.crypto.encrypt(v)?
 		} else {
-			String::from("")
+			String::from("deleted")
 		};
 		let mut builder = cookie::Cookie::build(name, cookie_value).path("/");
 		if value.is_none() {
-			// builder.expires(std::time::SystemTime::UNIX_EPOCH);
-			builder = builder.expires(time::empty_tm());
+			builder = builder.expires(time::at_utc(time::Timespec::new(1, 0)));
 		}
 		Ok(builder.finish())
 	}

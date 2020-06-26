@@ -78,12 +78,24 @@ async fn route_callback(
 ///
 /// Validate the login
 ///
+async fn route_refresh(data: web::Data<Data>, req: HttpRequest) -> Result<impl Responder, Error> {
+	let mut session = Session::from_request(data, &req);
+	session.validate().await?;
+
+	let mut builder = HttpResponse::Ok();
+	session.response(&mut builder, SessionFlags::COOKIES)?;
+	Ok(builder.finish())
+}
+
+///
+/// Validate the login
+///
 async fn route_validate(data: web::Data<Data>, req: HttpRequest) -> Result<impl Responder, Error> {
 	let mut session = Session::from_request(data, &req);
 	session.validate().await?;
 
 	let mut builder = HttpResponse::Ok();
-	session.response(&mut builder, SessionFlags::X_HEADERS);
+	session.response(&mut builder, SessionFlags::X_HEADERS)?;
 	Ok(builder.finish())
 }
 
@@ -114,6 +126,7 @@ impl Handler {
 			.data(data)
 			.route("/login", web::get().to(route_login))
 			.route("/auth/callback", web::get().to(route_callback))
+			.route("/auth/refresh", web::get().to(route_refresh))
 			.route("/auth/validate", web::get().to(route_validate));
 		Ok(())
 	}
