@@ -326,6 +326,7 @@ dependencies = [
  "actix-web",
  "async-trait",
  "base64 0.12.2",
+ "bitflags",
  "config",
  "env_logger",
  "futures",

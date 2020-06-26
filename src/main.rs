@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate bitflags;
+
 mod api;
 mod error;
 mod provider;
