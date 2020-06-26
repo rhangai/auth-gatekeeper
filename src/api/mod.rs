@@ -10,7 +10,11 @@ pub struct Api {
 	id_token_endpoint: Option<Url>,
 }
 
+///
+/// API implementation
+///
 impl Api {
+	/// Construct the API endpoints
 	pub fn new(settings: &Settings) -> Result<Self, Error> {
 		let mut id_token_endpoint: Option<Url> = None;
 		if let Some(ref endpoint) = settings.api.id_token_endpoint {

@@ -56,8 +56,8 @@ async fn route_callback(
 	if token_set.is_none() {
 		return Ok(HttpResponse::Unauthorized().finish());
 	}
-	let session = Session::new(data.clone(), token_set.unwrap());
 	let mut builder = HttpResponse::Found();
+	let session = Session::new(data.clone(), token_set.unwrap());
 	session.response(&mut builder, SessionFlags::COOKIES)?;
 	{
 		let mut location: String = String::from("/");
@@ -80,7 +80,8 @@ async fn route_callback(
 ///
 async fn route_refresh(data: web::Data<Data>, req: HttpRequest) -> Result<impl Responder, Error> {
 	let mut session = Session::from_request(data, &req);
-	session.validate().await?;
+	session.validate(true).await?;
+	session.api().await?;
 
 	let mut builder = HttpResponse::Ok();
 	session.response(&mut builder, SessionFlags::COOKIES)?;
@@ -92,10 +93,11 @@ async fn route_refresh(data: web::Data<Data>, req: HttpRequest) -> Result<impl R
 ///
 async fn route_validate(data: web::Data<Data>, req: HttpRequest) -> Result<impl Responder, Error> {
 	let mut session = Session::from_request(data, &req);
-	session.validate().await?;
+	session.validate(true).await?;
+	session.api().await?;
 
 	let mut builder = HttpResponse::Ok();
-	session.response(&mut builder, SessionFlags::X_HEADERS)?;
+	session.response(&mut builder, SessionFlags::X_AUTH_HEADERS)?;
 	Ok(builder.finish())
 }
 

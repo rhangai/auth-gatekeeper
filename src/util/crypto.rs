@@ -76,7 +76,7 @@ impl Crypto {
 			Ok(v) => v,
 			Err(_err) => return Err(Error::CryptoError),
 		};
-		if (encrypted.len() < 93) {
+		if encrypted.len() < 93 {
 			return Err(Error::CryptoError);
 		}
 		let data_range_start = 77;
@@ -158,8 +158,8 @@ impl Crypto {
 	fn fill_random_bytes<'a>(&self, v: &'a mut [u8]) -> Result<&'a [u8], Error> {
 		let result = self.random.fill(v);
 		match result {
-			Err(_e) => return Err(Error::CryptoRandomBytesError),
-			Ok(_v) => Ok(v),
+			Err(_) => return Err(Error::CryptoRandomBytesError),
+			Ok(_) => Ok(v),
 		}
 	}
 	///

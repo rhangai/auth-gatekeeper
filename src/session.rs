@@ -18,7 +18,7 @@ enum SessionStatus {
 
 bitflags! {
 	pub struct SessionFlags: u8 {
-		const X_HEADERS = 0x01;
+		const X_AUTH_HEADERS = 0x01;
 		const COOKIES   = 0x02;
 	}
 }
@@ -85,10 +85,20 @@ impl Session {
 			refresh_token: refresh_token,
 		});
 	}
+
+	///
+	/// Check if any api calls are necessary
+	///
+	pub async fn api(&self) -> Result<(), Error> {
+		if let Some(ref id_token) = self.id_token {
+			self.data.api.on_id_token(id_token).await?;
+		}
+		Ok(())
+	}
 	///
 	/// Validate the information and try to refresh the session
 	///
-	pub async fn validate(&mut self) -> Result<(), Error> {
+	pub async fn validate(&mut self, refresh: bool) -> Result<(), Error> {
 		// Invalidates the session
 		self.status = SessionStatus::Invalid;
 
@@ -107,33 +117,38 @@ impl Session {
 			}
 		}
 
-		// Try to get a new refresh token
-		if let Some(refresh_token) = token_set.refresh_token {
-			let new_token_set_result = self
-				.data
-				.provider
-				.grant_refresh_token(&refresh_token)
-				.await?;
-			if let Some(new_token_set) = new_token_set_result {
-				let userinfo = self
+		// Check if need to refresh
+		if refresh {
+			if let Some(refresh_token) = token_set.refresh_token {
+				let new_token_set_result = self
 					.data
 					.provider
-					.userinfo(&new_token_set.access_token)
+					.grant_refresh_token(&refresh_token)
 					.await?;
-				if userinfo.is_some() {
-					self.token_set = Some(SessionTokenSet {
-						access_token: Some(new_token_set.access_token),
-						refresh_token: Some(new_token_set.refresh_token),
-					});
-					self.status = SessionStatus::New(userinfo);
+				if let Some(new_token_set) = new_token_set_result {
+					let userinfo = self
+						.data
+						.provider
+						.userinfo(&new_token_set.access_token)
+						.await?;
+					if userinfo.is_some() {
+						self.token_set = Some(SessionTokenSet {
+							access_token: Some(new_token_set.access_token),
+							refresh_token: Some(new_token_set.refresh_token),
+						});
+						self.id_token = new_token_set.id_token;
+						self.status = SessionStatus::New(userinfo);
+					}
 				}
 			}
 		}
 		Ok(())
 	}
-
 	///
-	/// Set the response
+	/// Build the response using the flags
+	///
+	/// If SessionFlags::COOKIES is requested, allow the set-cookie headers
+	/// If SessionFlags::X_AUTH_HEADERS is requested, then set the x-auth headers
 	///
 	pub fn response(
 		&self,
@@ -167,7 +182,7 @@ impl Session {
 		flags: SessionFlags,
 	) -> Result<(), Error> {
 		if let Some(ref userinfo) = userinfo {
-			if flags.contains(SessionFlags::X_HEADERS) {
+			if flags.contains(SessionFlags::X_AUTH_HEADERS) {
 				builder.header("x-auth-userinfo", serde_json::to_string(&userinfo.data)?);
 			}
 		}
@@ -176,19 +191,21 @@ impl Session {
 	///
 	/// Save the session
 	///
+	/// When the session doesn't have a session token
+	///
 	fn response_save_session(
 		&self,
 		builder: &mut ResponseBuilder,
 		token_set: Option<SessionTokenSet>,
 		flags: SessionFlags,
 	) -> Result<(), Error> {
-		// If the token
+		// If the token is not set, then clear the session
 		if token_set.is_none() {
 			let cookie_access_token_name = self.data.settings.cookie.access_token_name.clone();
 			let cookie_access_token = self.create_cookie(cookie_access_token_name, None)?;
 			let cookie_refresh_token_name = self.data.settings.cookie.refresh_token_name.clone();
 			let cookie_refresh_token = self.create_cookie(cookie_refresh_token_name, None)?;
-			if flags.contains(SessionFlags::X_HEADERS) {
+			if flags.contains(SessionFlags::X_AUTH_HEADERS) {
 				builder.header("x-auth-set-cookie-1", cookie_access_token.to_string());
 				builder.header("x-auth-set-cookie-2", cookie_refresh_token.to_string());
 			}
@@ -208,7 +225,7 @@ impl Session {
 		let cookie_refresh_token_name = self.data.settings.cookie.refresh_token_name.clone();
 		let cookie_refresh_token =
 			self.create_cookie(cookie_refresh_token_name, token_set.refresh_token)?;
-		if flags.contains(SessionFlags::X_HEADERS) {
+		if flags.contains(SessionFlags::X_AUTH_HEADERS) {
 			builder.header("x-auth-set-cookie-1", cookie_access_token.to_string());
 			builder.header("x-auth-set-cookie-2", cookie_refresh_token.to_string());
 		}
@@ -219,11 +236,14 @@ impl Session {
 		Ok(())
 	}
 
+	///
+	/// Create a cookie to be used. If None is passed, the cookie is marked as deleted
+	///
 	fn create_cookie(&self, name: String, value: Option<String>) -> Result<cookie::Cookie, Error> {
 		let cookie_value = if let Some(ref v) = value {
 			self.data.crypto.encrypt(v)?
 		} else {
-			String::from("deleted")
+			String::from("")
 		};
 		let mut builder = cookie::Cookie::build(name, cookie_value).path("/");
 		if value.is_none() {

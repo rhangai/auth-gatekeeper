@@ -98,7 +98,9 @@ impl Settings {
 ///
 fn generate_random_secret(random: &dyn ring::rand::SecureRandom, size: usize) -> String {
 	let mut bytes: Vec<u8> = Vec::with_capacity(size);
-	bytes.resize(size, 0);
+	unsafe {
+		bytes.set_len(size);
+	}
 	random.fill(&mut bytes).unwrap();
 	return base64::encode(bytes);
 }
