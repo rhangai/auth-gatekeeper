@@ -58,7 +58,7 @@ async fn route_callback(
 	}
 	let session = Session::new(data.clone(), token_set.unwrap());
 	let mut builder = HttpResponse::Found();
-	session.response(&mut builder, SessionFlags::COOKIES);
+	session.response(&mut builder, SessionFlags::COOKIES)?;
 	{
 		let mut location: String = String::from("/");
 		if query.state.is_some() {

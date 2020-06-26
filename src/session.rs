@@ -132,34 +132,80 @@ impl Session {
 	///
 	/// Set the response
 	///
-	pub fn response(&self, builder: &mut ResponseBuilder, flags: SessionFlags) {
+	pub fn response(
+		&self,
+		builder: &mut ResponseBuilder,
+		flags: SessionFlags,
+	) -> Result<(), Error> {
 		if self.userinfo.is_none() {
+			if self.has_session {
+				self.response_save_session(builder, None, flags)?;
+			}
 			builder.status(StatusCode::UNAUTHORIZED);
-			return;
+			return Ok(());
 		}
+		if self.token_set_renewed {
+			self.response_save_session(builder, self.token_set.clone(), flags)?;
+		}
+		Ok(())
+	}
+	///
+	/// Save the
+	///
+	fn response_save_session(
+		&self,
+		builder: &mut ResponseBuilder,
+		token_set: Option<SessionTokenSet>,
+		flags: SessionFlags,
+	) -> Result<(), Error> {
+		// If the token
+		if token_set.is_none() {
+			let cookie_access_token_name = self.data.settings.cookie.access_token_name.clone();
+			let cookie_access_token = self.create_cookie(cookie_access_token_name, None)?;
+			let cookie_refresh_token_name = self.data.settings.cookie.refresh_token_name.clone();
+			let cookie_refresh_token = self.create_cookie(cookie_refresh_token_name, None)?;
+			if flags.contains(SessionFlags::X_HEADERS) {
+				builder.header("x-auth-set-cookie-1", cookie_access_token.to_string());
+				builder.header("x-auth-set-cookie-2", cookie_refresh_token.to_string());
+			}
+			if flags.contains(SessionFlags::COOKIES) {
+				builder.cookie(cookie_access_token);
+				builder.cookie(cookie_refresh_token);
+			}
+			return Ok(());
+		}
+
+		let token_set = token_set.unwrap();
+		let cookie_access_token_name = self.data.settings.cookie.access_token_name.clone();
+		let cookie_access_token =
+			self.create_cookie(cookie_access_token_name, token_set.access_token)?;
+
+		// Set the cookie
+		let cookie_refresh_token_name = self.data.settings.cookie.refresh_token_name.clone();
+		let cookie_refresh_token =
+			self.create_cookie(cookie_refresh_token_name, token_set.refresh_token)?;
+		if flags.contains(SessionFlags::X_HEADERS) {
+			builder.header("x-auth-set-cookie-1", cookie_access_token.to_string());
+			builder.header("x-auth-set-cookie-2", cookie_refresh_token.to_string());
+		}
+		if flags.contains(SessionFlags::COOKIES) {
+			builder.cookie(cookie_access_token);
+			builder.cookie(cookie_refresh_token);
+		}
+		Ok(())
 	}
 
-	// pub fn set_cookies(&self, builder: &mut ResponseBuilder) {
-	// 	if let Some(ref cookies) = self.cookies {
-	// 		for cookie in cookies {
-	// 			builder.cookie(cookie.clone());
-	// 		}
-	// 	}
-	// }
-
-	// ///
-	// /// Set the X-Auth headers on the given object
-	// ///
-	// pub fn set_x_auth_headers(&self, builder: &mut ResponseBuilder) {
-	// 	if let Some(ref userinfo) = self.userinfo {
-	// 		// builder.header("x-auth-userinfo", userinfo.data);
-	// 	}
-	// 	if let Some(ref cookies) = self.cookies {
-	// 		let mut i = 1;
-	// 		for cookie in cookies {
-	// 			builder.header(&format!("x-auth-set-cookie-{}", i), cookie.to_string());
-	// 			i += 1;
-	// 		}
-	// 	}
-	// }
+	fn create_cookie(&self, name: String, value: Option<String>) -> Result<cookie::Cookie, Error> {
+		let cookie_value = if let Some(ref v) = value {
+			self.data.crypto.encrypt(v)?
+		} else {
+			String::from("")
+		};
+		let mut builder = cookie::Cookie::build(name, cookie_value).path("/");
+		if value.is_none() {
+			// builder.expires(std::time::SystemTime::UNIX_EPOCH);
+			builder = builder.expires(time::empty_tm());
+		}
+		Ok(builder.finish())
+	}
 }

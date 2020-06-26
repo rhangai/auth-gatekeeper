@@ -1,5 +1,6 @@
 #[derive(Debug)]
 pub enum Error {
+	UnknownError,
 	CryptoError,
 	CryptoCipherError,
 	CryptoNonceError,
