@@ -1,6 +1,6 @@
 use super::data::Data;
 use crate::error::Error;
-use crate::provider::TokenSet;
+use crate::provider::{TokenSet, Userinfo};
 use actix_http::ResponseBuilder;
 use actix_web::{cookie, web, HttpMessage, HttpRequest};
 
@@ -11,7 +11,7 @@ pub struct HttpRequestTokenSet {
 
 pub struct HttpRequestRefreshInfo {
 	pub token_set: Option<TokenSet>,
-	pub userinfo: serde_json::Value,
+	pub userinfo: Userinfo,
 }
 
 pub struct Http {}

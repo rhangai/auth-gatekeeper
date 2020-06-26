@@ -1,4 +1,4 @@
-use super::base::{Provider, TokenSet};
+use super::base::{Provider, TokenSet, Userinfo};
 use crate::error::Error;
 use crate::settings::Settings;
 use reqwest::Url;
@@ -98,7 +98,7 @@ impl Provider for ProviderOIDC {
 	///
 	/// Request the userinfo
 	///
-	async fn userinfo(&self, access_token: &str) -> Result<Option<serde_json::Value>, Error> {
+	async fn userinfo(&self, access_token: &str) -> Result<Option<Userinfo>, Error> {
 		let res = self
 			.client
 			.get(self.userinfo_url.as_str())
@@ -119,7 +119,10 @@ impl Provider for ProviderOIDC {
 		}
 
 		let body = res.unwrap().json::<serde_json::Value>().await?;
-		Ok(Some(body))
+		Ok(Some(Userinfo {
+			data: body,
+			expires_at: None,
+		}))
 	}
 	///
 	/// Peform an authorization_code grant

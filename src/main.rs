@@ -2,6 +2,7 @@ mod api;
 mod error;
 mod provider;
 mod server;
+mod session;
 mod settings;
 mod util;
 

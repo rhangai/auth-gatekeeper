@@ -11,6 +11,15 @@ pub struct TokenSet {
 	pub id_token: Option<serde_json::Value>,
 }
 
+///
+/// Userinfo
+///
+#[derive(Debug)]
+pub struct Userinfo {
+	pub data: serde_json::Value,
+	pub expires_at: Option<std::time::SystemTime>,
+}
+
 #[async_trait::async_trait]
 pub trait Provider {
 	///
@@ -20,7 +29,7 @@ pub trait Provider {
 	///
 	/// Get the userinfo according to the access_token
 	///
-	async fn userinfo(&self, access_token: &str) -> Result<Option<serde_json::Value>, Error>;
+	async fn userinfo(&self, access_token: &str) -> Result<Option<Userinfo>, Error>;
 	///
 	/// Perform a grant_type: authorization_code request
 	///

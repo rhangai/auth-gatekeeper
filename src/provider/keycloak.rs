@@ -1,4 +1,4 @@
-use super::base::{Provider, TokenSet};
+use super::base::{Provider, TokenSet, Userinfo};
 use super::oidc::ProviderOIDC;
 use crate::error::Error;
 use crate::settings::Settings;
@@ -29,7 +29,7 @@ impl Provider for ProviderKeycloak {
 	///
 	/// When using keycloak, the access_token itself contains the userinfo
 	///
-	async fn userinfo(&self, access_token: &str) -> Result<Option<serde_json::Value>, Error> {
+	async fn userinfo(&self, access_token: &str) -> Result<Option<Userinfo>, Error> {
 		let userinfo = jsonwebtoken::dangerous_unsafe_decode::<serde_json::Value>(access_token);
 		if userinfo.is_err() {
 			return Ok(None);
@@ -43,7 +43,10 @@ impl Provider for ProviderKeycloak {
 		if exp.is_some() && exp.unwrap() <= now.unwrap().as_secs() {
 			return Ok(None);
 		}
-		Ok(Some(claims))
+		Ok(Some(Userinfo {
+			data: claims,
+			expires_at: None,
+		}))
 	}
 	///
 	/// Get the OIDC authorization url
