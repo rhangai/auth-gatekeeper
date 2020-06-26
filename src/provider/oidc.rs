@@ -69,7 +69,7 @@ fn to_value(obj: &serde_json::Value, key: &str) -> Option<serde_json::Value> {
 		return None;
 	}
 	let value = value.unwrap();
-	if *value == serde_json::Value::Null {
+	if let serde_json::Value::Null = value {
 		return None;
 	}
 	Some(value.clone())

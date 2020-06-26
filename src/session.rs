@@ -91,7 +91,8 @@ impl Session {
 	///
 	pub async fn api(&self) -> Result<(), Error> {
 		if let Some(ref id_token) = self.id_token {
-			self.data.api.on_id_token(id_token).await?;
+			let id_token = self.data.jwt.encode_value(id_token)?;
+			self.data.api.on_id_token(&id_token).await?;
 		}
 		Ok(())
 	}
@@ -183,7 +184,8 @@ impl Session {
 	) -> Result<(), Error> {
 		if let Some(ref userinfo) = userinfo {
 			if flags.contains(SessionFlags::X_AUTH_HEADERS) {
-				builder.header("x-auth-userinfo", serde_json::to_string(&userinfo.data)?);
+				let userinfo_encoded = self.data.jwt.encode_str(&userinfo.data)?;
+				builder.header("x-auth-userinfo", userinfo_encoded);
 			}
 		}
 		Ok(())
