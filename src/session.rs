@@ -65,13 +65,13 @@ impl Session {
 		}
 		let cookies = cookies_result.unwrap();
 
-		let mut access_token: Option<String> = None;
-		let mut refresh_token: Option<String> = None;
+		let mut access_token: Option<&str> = None;
+		let mut refresh_token: Option<&str> = None;
 		for cookie in cookies.iter() {
 			if cookie.name() == data.settings.cookie.access_token_name {
-				access_token = data.crypto.decrypt(cookie.value()).ok();
+				access_token = Some(cookie.value());
 			} else if cookie.name() == data.settings.cookie.refresh_token_name {
-				refresh_token = data.crypto.decrypt(cookie.value()).ok();
+				refresh_token = Some(cookie.value());
 			}
 			if access_token.is_some() && refresh_token.is_some() {
 				break;
@@ -81,8 +81,8 @@ impl Session {
 			return None;
 		}
 		return Some(SessionTokenSet {
-			access_token: access_token,
-			refresh_token: refresh_token,
+			access_token: data.crypto.decrypt(access_token.unwrap()).ok(),
+			refresh_token: data.crypto.decrypt(refresh_token.unwrap()).ok(),
 		});
 	}
 
