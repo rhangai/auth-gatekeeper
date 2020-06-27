@@ -36,7 +36,6 @@ impl Provider for ProviderKeycloak {
 		}
 
 		let claims = userinfo.unwrap().claims;
-
 		let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH);
 
 		let exp = claims["exp"].as_u64();
