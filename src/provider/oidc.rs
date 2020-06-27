@@ -138,6 +138,22 @@ impl Provider for ProviderOIDC {
 		self.grant(&params).await
 	}
 	///
+	/// Perform a password grant
+	///
+	async fn grant_password(
+		&self,
+		username: &str,
+		password: &str,
+	) -> Result<Option<TokenSet>, Error> {
+		let params = [
+			("grant_type", "refresh_token"),
+			("client_id", &self.client_id),
+			("client_secret", &self.client_secret),
+			("refresh_token", refresh_token),
+		];
+		self.grant(&params).await
+	}
+	///
 	/// Peform a refresh_token grant
 	///
 	async fn grant_refresh_token(&self, refresh_token: &str) -> Result<Option<TokenSet>, Error> {

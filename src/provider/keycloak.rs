@@ -56,6 +56,16 @@ impl Provider for ProviderKeycloak {
 	///
 	/// Get the OIDC authorization url
 	///
+	async fn grant_password(
+		&self,
+		username: &str,
+		password: &str,
+	) -> Result<Option<TokenSet>, Error> {
+		self.oidc.grant_password(username, password).await
+	}
+	///
+	/// Get the OIDC authorization url
+	///
 	async fn grant_refresh_token(&self, refresh_token: &str) -> Result<Option<TokenSet>, Error> {
 		self.oidc.grant_refresh_token(refresh_token).await
 	}

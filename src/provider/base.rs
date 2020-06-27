@@ -35,6 +35,14 @@ pub trait Provider {
 	///
 	async fn grant_authorization_code(&self, code: &str) -> Result<Option<TokenSet>, Error>;
 	///
+	/// Perform a grant_type: password request
+	///
+	async fn grant_password(
+		&self,
+		username: &str,
+		password: &str,
+	) -> Result<Option<TokenSet>, Error>;
+	///
 	/// Perform a new grant_type: refresh_token request
 	///
 	async fn grant_refresh_token(&self, refresh_token: &str) -> Result<Option<TokenSet>, Error>;
