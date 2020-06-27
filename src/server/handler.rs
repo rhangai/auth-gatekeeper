@@ -37,6 +37,18 @@ async fn route_login(
 }
 
 ///
+/// Perform the login
+///
+async fn route_logout(data: web::Data<Data>) -> Result<impl Responder, Error> {
+	let url = data.provider.get_logout_url();
+	let session = Session::clear(data);
+	let mut builder = HttpResponse::Found();
+	builder.header("location", url);
+	session.response(&mut builder, SessionFlags::COOKIES)?;
+	Ok(builder.finish())
+}
+
+///
 /// Callback
 ///
 async fn route_callback(
@@ -127,6 +139,7 @@ impl Handler {
 		service_config
 			.data(data)
 			.route("/login", web::get().to(route_login))
+			.route("/logout", web::get().to(route_logout))
 			.route("/auth/callback", web::get().to(route_callback))
 			.route("/auth/refresh", web::get().to(route_refresh))
 			.route("/auth/validate", web::get().to(route_validate));

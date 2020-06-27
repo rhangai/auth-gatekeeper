@@ -12,6 +12,7 @@ struct SessionTokenSet {
 
 enum SessionStatus {
 	Invalid,
+	Clear,
 	New(Option<Userinfo>),
 	Logged(Option<Userinfo>),
 }
@@ -42,6 +43,16 @@ impl Session {
 			}),
 			has_session: false,
 			id_token: token_set.id_token,
+		}
+	}
+
+	pub fn clear(data: web::Data<Data>) -> Self {
+		Self {
+			data: data,
+			status: SessionStatus::Clear,
+			token_set: None,
+			has_session: true,
+			id_token: None,
 		}
 	}
 
@@ -162,6 +173,9 @@ impl Session {
 					self.response_save_session(builder, None, flags)?;
 				}
 				builder.status(StatusCode::UNAUTHORIZED);
+			}
+			SessionStatus::Clear => {
+				self.response_save_session(builder, None, flags)?;
 			}
 			SessionStatus::New(ref userinfo) => {
 				self.response_save_session(builder, self.token_set.clone(), flags)?;

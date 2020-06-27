@@ -83,6 +83,18 @@ const OPTS: &[(&str, &str, &str, &str)] = &[
 		"URL",
 	),
 	(
+		"provider-end-session-url",
+		"provider.end_session_url",
+		"Url to logout",
+		"URL",
+	),
+	(
+		"provider-logout-redirect-url",
+		"provider.logout_redirect_url",
+		"Url to send the user after the logout",
+		"URL",
+	),
+	(
 		"provider-callback-url",
 		"provider.callback_url",
 		"Url to send the user back when auth is complete",

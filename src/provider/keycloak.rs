@@ -27,6 +27,12 @@ impl Provider for ProviderKeycloak {
 		self.oidc.get_authorization_url(state)
 	}
 	///
+	/// Get the OIDC logout url
+	///
+	fn get_logout_url(&self) -> String {
+		self.oidc.get_logout_url()
+	}
+	///
 	/// When using keycloak, the access_token itself contains the userinfo
 	///
 	async fn userinfo(&self, access_token: &str) -> Result<Option<Userinfo>, Error> {

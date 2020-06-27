@@ -47,7 +47,9 @@ pub struct SettingsProvider {
 	pub auth_url: String,
 	pub token_url: String,
 	pub userinfo_url: String,
+	pub end_session_url: Option<String>,
 	pub callback_url: String,
+	pub logout_redirect_url: String,
 }
 
 impl Settings {
