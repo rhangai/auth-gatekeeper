@@ -107,6 +107,18 @@ impl Session {
 		}
 		Ok(())
 	}
+
+	///
+	/// Get the userinfo
+	///
+	pub fn get_userinfo<'a>(&'a self) -> Option<&'a Userinfo> {
+		match self.status {
+			SessionStatus::Invalid => None,
+			SessionStatus::Clear => None,
+			SessionStatus::New(ref userinfo) => userinfo.as_ref(),
+			SessionStatus::Logged(ref userinfo) => userinfo.as_ref(),
+		}
+	}
 	///
 	/// Validate the information and try to refresh the session
 	///

@@ -97,7 +97,20 @@ async fn route_refresh(data: web::Data<Data>, req: HttpRequest) -> Result<impl R
 
 	let mut builder = HttpResponse::Ok();
 	session.response(&mut builder, SessionFlags::COOKIES)?;
-	Ok(builder.finish())
+
+	let userinfo = session.get_userinfo();
+	if let Some(userinfo) = userinfo {
+		let mut data = std::collections::HashMap::new();
+		if let Some(ref user_email) = userinfo.data.get("email") {
+			data.insert("email", user_email.as_str().unwrap_or(""));
+		}
+		if let Some(ref user_name) = userinfo.data.get("name") {
+			data.insert("name", user_name.as_str().unwrap_or(""));
+		}
+		Ok(builder.json(data))
+	} else {
+		Ok(builder.finish())
+	}
 }
 
 ///
