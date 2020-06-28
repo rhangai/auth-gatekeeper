@@ -72,6 +72,7 @@ async fn route_callback(
 	}
 	let mut builder = HttpResponse::Found();
 	let session = Session::new(data.clone(), token_set.unwrap());
+	session.api().await?;
 	session.response(&mut builder, SessionFlags::COOKIES)?;
 	{
 		let mut location: String = String::from("/");
