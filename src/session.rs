@@ -91,9 +91,19 @@ impl Session {
 		if access_token.is_none() && refresh_token.is_none() {
 			return None;
 		}
+		let access_token = if let Some(access_token) = access_token {
+			data.crypto.decrypt(access_token).ok()
+		} else {
+			None
+		};
+		let refresh_token = if let Some(refresh_token) = refresh_token {
+			data.crypto.decrypt(refresh_token).ok()
+		} else {
+			None
+		};
 		return Some(SessionTokenSet {
-			access_token: data.crypto.decrypt(access_token.unwrap()).ok(),
-			refresh_token: data.crypto.decrypt(refresh_token.unwrap()).ok(),
+			access_token: access_token,
+			refresh_token: refresh_token,
 		});
 	}
 
