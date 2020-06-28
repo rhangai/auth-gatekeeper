@@ -1,6 +1,7 @@
 use crate::error::Error;
 use crate::settings::Settings;
 use crate::util::jwt::JsonValue;
+use reqwest::StatusCode;
 use reqwest::Url;
 use std::collections::HashMap;
 
@@ -33,11 +34,17 @@ impl Api {
 		if let Some(ref endpoint) = self.id_token_endpoint {
 			let mut map = HashMap::new();
 			map.insert("id_token", value);
-			self.client
+			let response = self
+				.client
 				.post(endpoint.as_str())
 				.json(&map)
 				.send()
 				.await?;
+
+			// If the response is invalid, does not let the user login
+			if response.status() != StatusCode::OK {
+				return Err(Error::ApiError);
+			}
 		}
 		Ok(())
 	}

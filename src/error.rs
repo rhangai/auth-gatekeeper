@@ -16,6 +16,8 @@ pub enum Error {
 	JsonError(serde_json::Error),
 
 	RequestError(reqwest::Error),
+
+	ApiError,
 }
 
 impl std::error::Error for Error {}
