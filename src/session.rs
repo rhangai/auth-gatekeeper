@@ -283,7 +283,9 @@ impl Session {
 		} else {
 			String::from("")
 		};
-		let mut builder = cookie::Cookie::build(name, cookie_value).path("/");
+		let mut builder = cookie::Cookie::build(name, cookie_value)
+			.path("/")
+			.http_only(true);
 		if value.is_none() {
 			builder = builder.expires(time::at_utc(time::Timespec::new(1, 0)));
 		}
