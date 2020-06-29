@@ -14,6 +14,7 @@ pub struct Settings {
 	pub listen: String,
 	pub secret: String,
 	pub jwt_secret: Option<String>,
+	pub data: Option<String>,
 	pub api: SettingsApi,
 	pub cookie: SettingsCookie,
 	pub provider: SettingsProvider,

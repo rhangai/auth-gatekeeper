@@ -29,6 +29,12 @@ const OPTS: &[(&str, &str, &str, &str)] = &[
 		"SECRET",
 	),
 	(
+		"data",
+		"data",
+		"Arbitrary DATA to pass directly to x-auth-data header",
+		"DATA",
+	),
+	(
 		"api-id-token-endpoint",
 		"api.id_token_endpoint",
 		"The endpoint to call everytime a new id_token is found",

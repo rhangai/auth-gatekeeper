@@ -222,6 +222,9 @@ impl Session {
 			if flags.contains(SessionFlags::X_AUTH_HEADERS) {
 				let userinfo_encoded = self.data.jwt.encode_str(&userinfo.data)?;
 				builder.header("x-auth-userinfo", userinfo_encoded);
+				if let Some(ref data) = self.data.settings.data {
+					builder.header("x-auth-data", data.clone());
+				};
 			}
 		}
 		Ok(())
