@@ -33,11 +33,18 @@ impl Api {
 		if let Some(ref endpoint) = self.id_token_endpoint {
 			let mut map = HashMap::new();
 			map.insert("id_token", value);
-			self.client
+			let response = self
+				.client
 				.post(endpoint.as_str())
 				.json(&map)
 				.send()
 				.await?;
+
+			// If the response is invalid, does not let the user login
+			let code = response.status().as_u16();
+			if code < 200 || code >= 300 {
+				return Err(Error::ApiError);
+			}
 		}
 		Ok(())
 	}

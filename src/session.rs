@@ -12,6 +12,7 @@ struct SessionTokenSet {
 
 enum SessionStatus {
 	Invalid,
+	Clear,
 	New(Option<Userinfo>),
 	Logged(Option<Userinfo>),
 }
@@ -42,6 +43,16 @@ impl Session {
 			}),
 			has_session: false,
 			id_token: token_set.id_token,
+		}
+	}
+
+	pub fn clear(data: web::Data<Data>) -> Self {
+		Self {
+			data: data,
+			status: SessionStatus::Clear,
+			token_set: None,
+			has_session: true,
+			id_token: None,
 		}
 	}
 
@@ -80,9 +91,19 @@ impl Session {
 		if access_token.is_none() && refresh_token.is_none() {
 			return None;
 		}
+		let access_token = if let Some(access_token) = access_token {
+			data.crypto.decrypt(access_token).ok()
+		} else {
+			None
+		};
+		let refresh_token = if let Some(refresh_token) = refresh_token {
+			data.crypto.decrypt(refresh_token).ok()
+		} else {
+			None
+		};
 		return Some(SessionTokenSet {
-			access_token: data.crypto.decrypt(access_token.unwrap()).ok(),
-			refresh_token: data.crypto.decrypt(refresh_token.unwrap()).ok(),
+			access_token: access_token,
+			refresh_token: refresh_token,
 		});
 	}
 
@@ -95,6 +116,18 @@ impl Session {
 			self.data.api.on_id_token(&id_token).await?;
 		}
 		Ok(())
+	}
+
+	///
+	/// Get the userinfo
+	///
+	pub fn get_userinfo<'a>(&'a self) -> Option<&'a Userinfo> {
+		match self.status {
+			SessionStatus::Invalid => None,
+			SessionStatus::Clear => None,
+			SessionStatus::New(ref userinfo) => userinfo.as_ref(),
+			SessionStatus::Logged(ref userinfo) => userinfo.as_ref(),
+		}
 	}
 	///
 	/// Validate the information and try to refresh the session
@@ -162,6 +195,9 @@ impl Session {
 					self.response_save_session(builder, None, flags)?;
 				}
 				builder.status(StatusCode::UNAUTHORIZED);
+			}
+			SessionStatus::Clear => {
+				self.response_save_session(builder, None, flags)?;
 			}
 			SessionStatus::New(ref userinfo) => {
 				self.response_save_session(builder, self.token_set.clone(), flags)?;
@@ -247,7 +283,9 @@ impl Session {
 		} else {
 			String::from("")
 		};
-		let mut builder = cookie::Cookie::build(name, cookie_value).path("/");
+		let mut builder = cookie::Cookie::build(name, cookie_value)
+			.path("/")
+			.http_only(true);
 		if value.is_none() {
 			builder = builder.expires(time::at_utc(time::Timespec::new(1, 0)));
 		}

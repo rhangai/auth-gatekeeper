@@ -4,8 +4,10 @@ use crate::error::Error;
 use crate::session::{Session, SessionFlags};
 use crate::settings::Settings;
 use crate::util::crypto;
+use crate::util::jwt::JsonValue;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use serde::Deserialize;
+use std::collections::HashMap;
 
 #[derive(Deserialize)]
 struct LoginQuery {
@@ -37,6 +39,18 @@ async fn route_login(
 }
 
 ///
+/// Perform the login
+///
+async fn route_logout(data: web::Data<Data>) -> Result<impl Responder, Error> {
+	let url = data.provider.get_logout_url();
+	let session = Session::clear(data);
+	let mut builder = HttpResponse::Found();
+	builder.header("location", url);
+	session.response(&mut builder, SessionFlags::COOKIES)?;
+	Ok(builder.finish())
+}
+
+///
 /// Callback
 ///
 async fn route_callback(
@@ -58,6 +72,7 @@ async fn route_callback(
 	}
 	let mut builder = HttpResponse::Found();
 	let session = Session::new(data.clone(), token_set.unwrap());
+	session.api().await?;
 	session.response(&mut builder, SessionFlags::COOKIES)?;
 	{
 		let mut location: String = String::from("/");
@@ -85,7 +100,25 @@ async fn route_refresh(data: web::Data<Data>, req: HttpRequest) -> Result<impl R
 
 	let mut builder = HttpResponse::Ok();
 	session.response(&mut builder, SessionFlags::COOKIES)?;
-	Ok(builder.finish())
+
+	let userinfo = session.get_userinfo();
+	if let Some(userinfo) = userinfo {
+		let mut data: HashMap<&str, &JsonValue> = HashMap::new();
+		if let Some(ref user_email) = userinfo.data.get("email") {
+			data.insert("email", user_email);
+		}
+		if let Some(ref user_name) = userinfo.data.get("name") {
+			data.insert("name", user_name);
+		}
+		if let Some(ref user_realm_access) = userinfo.data.get("realm_access") {
+			if let Some(ref user_roles) = user_realm_access.get("roles") {
+				data.insert("roles", user_roles);
+			}
+		}
+		Ok(builder.json(data))
+	} else {
+		Ok(builder.finish())
+	}
 }
 
 ///
@@ -127,6 +160,7 @@ impl Handler {
 		service_config
 			.data(data)
 			.route("/login", web::get().to(route_login))
+			.route("/logout", web::get().to(route_logout))
 			.route("/auth/callback", web::get().to(route_callback))
 			.route("/auth/refresh", web::get().to(route_refresh))
 			.route("/auth/validate", web::get().to(route_validate));

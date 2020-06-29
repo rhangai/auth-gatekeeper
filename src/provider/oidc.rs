@@ -11,7 +11,9 @@ pub struct ProviderOIDC {
 	auth_url: Url,
 	token_url: Url,
 	userinfo_url: Url,
+	end_session_url: Option<Url>,
 	callback_url: Url,
+	logout_redirect_url: Url,
 }
 
 impl ProviderOIDC {
@@ -23,6 +25,12 @@ impl ProviderOIDC {
 		let token_url = Url::parse(&settings.provider.token_url)?;
 		let userinfo_url = Url::parse(&settings.provider.userinfo_url)?;
 		let callback_url = Url::parse(&settings.provider.callback_url)?;
+		let logout_redirect_url = Url::parse(&settings.provider.logout_redirect_url)?;
+		let end_session_url = if let Some(ref url) = &settings.provider.end_session_url {
+			Some(Url::parse(url)?)
+		} else {
+			None
+		};
 
 		Ok(Self {
 			client: reqwest::Client::new(),
@@ -31,7 +39,9 @@ impl ProviderOIDC {
 			auth_url: auth_url,
 			token_url: token_url,
 			userinfo_url: userinfo_url,
+			end_session_url: end_session_url,
 			callback_url: callback_url,
+			logout_redirect_url,
 		})
 	}
 	///
@@ -93,6 +103,20 @@ impl Provider for ProviderOIDC {
 				query_pairs.append_pair("state", &state);
 			}
 		}
+		url.into_string()
+	}
+	///
+	/// Get the OIDC logout url
+	///
+	fn get_logout_url(&self) -> String {
+		let logout_url = self.logout_redirect_url.to_string();
+		if self.end_session_url.is_none() {
+			return logout_url;
+		}
+		let mut url = self.end_session_url.clone().unwrap();
+		let mut query_pairs = url.query_pairs_mut();
+		query_pairs.append_pair("redirect_uri", &logout_url);
+		drop(query_pairs);
 		url.into_string()
 	}
 	///

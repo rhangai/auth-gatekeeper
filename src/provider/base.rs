@@ -27,6 +27,10 @@ pub trait Provider {
 	///
 	fn get_authorization_url(&self, state: String) -> String;
 	///
+	/// Get the logout url
+	///
+	fn get_logout_url(&self) -> String;
+	///
 	/// Get the userinfo according to the access_token
 	///
 	async fn userinfo(&self, access_token: &str) -> Result<Option<Userinfo>, Error>;
