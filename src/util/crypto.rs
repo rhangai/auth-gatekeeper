@@ -66,13 +66,13 @@ impl Crypto {
 			Err(_e) => return Err(Error::CryptoError),
 		};
 		encrypted[data_range_end..].copy_from_slice(&tag.as_ref());
-		Ok(base64::encode(encrypted))
+		Ok(base64::encode_config(encrypted, base64::URL_SAFE_NO_PAD))
 	}
 	///
 	/// Decrypt the data
 	///
 	pub fn decrypt(&self, data: &str) -> Result<String, Error> {
-		let mut encrypted = match base64::decode(data) {
+		let mut encrypted = match base64::decode_config(data, base64::URL_SAFE_NO_PAD) {
 			Ok(v) => v,
 			Err(_err) => return Err(Error::CryptoError),
 		};
