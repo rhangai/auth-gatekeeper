@@ -170,10 +170,11 @@ impl Provider for ProviderOIDC {
 		password: &str,
 	) -> Result<Option<TokenSet>, Error> {
 		let params = [
-			("grant_type", "refresh_token"),
+			("grant_type", "password"),
 			("client_id", &self.client_id),
 			("client_secret", &self.client_secret),
-			("refresh_token", refresh_token),
+			("username", username),
+			("password", password),
 		];
 		self.grant(&params).await
 	}

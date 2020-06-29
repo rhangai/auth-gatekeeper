@@ -21,8 +21,19 @@ struct CallbackQuery {
 	code: Option<String>,
 }
 
+#[derive(Deserialize)]
+struct AuthLoginQuery {
+	url: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct AuthLoginForm {
+	username: String,
+	password: String,
+}
+
 ///
-/// Perform the login
+/// Redirect to the login url using authorization_code flow
 ///
 async fn route_login(
 	data: web::Data<Data>,
@@ -39,7 +50,37 @@ async fn route_login(
 }
 
 ///
-/// Perform the login
+/// Post to the login page using password flow
+///
+async fn route_post_login(
+	data: web::Data<Data>,
+	query: web::Query<AuthLoginQuery>,
+	form: web::Form<AuthLoginForm>,
+) -> Result<impl Responder, Error> {
+	// Perform the grant
+	let token_set = data
+		.provider
+		.grant_password(&form.username, &form.password)
+		.await?;
+	if token_set.is_none() {
+		return Ok(HttpResponse::Unauthorized().finish());
+	}
+
+	// Create the response and redirects
+	let mut builder = HttpResponse::Found();
+	let session = Session::new(data.clone(), token_set.unwrap());
+	session.api().await?;
+	session.response(&mut builder, SessionFlags::COOKIES)?;
+	if let Some(ref url) = query.url {
+		builder.header("location", url.clone());
+	} else {
+		builder.header("location", "/");
+	}
+	Ok(builder.finish())
+}
+
+///
+/// Logout
 ///
 async fn route_logout(data: web::Data<Data>) -> Result<impl Responder, Error> {
 	let url = data.provider.get_logout_url();
@@ -51,7 +92,7 @@ async fn route_logout(data: web::Data<Data>) -> Result<impl Responder, Error> {
 }
 
 ///
-/// Callback
+/// Callback for the authorization_code grant
 ///
 async fn route_callback(
 	data: web::Data<Data>,
@@ -160,6 +201,7 @@ impl Handler {
 		service_config
 			.data(data)
 			.route("/login", web::get().to(route_login))
+			.route("/login", web::post().to(route_post_login))
 			.route("/logout", web::get().to(route_logout))
 			.route("/auth/callback", web::get().to(route_callback))
 			.route("/auth/refresh", web::get().to(route_refresh))
