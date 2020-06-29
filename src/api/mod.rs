@@ -1,7 +1,6 @@
 use crate::error::Error;
 use crate::settings::Settings;
 use crate::util::jwt::JsonValue;
-use reqwest::StatusCode;
 use reqwest::Url;
 use std::collections::HashMap;
 
@@ -42,7 +41,8 @@ impl Api {
 				.await?;
 
 			// If the response is invalid, does not let the user login
-			if response.status() != StatusCode::OK {
+			let code = response.status().as_u16();
+			if code < 200 || code >= 300 {
 				return Err(Error::ApiError);
 			}
 		}
