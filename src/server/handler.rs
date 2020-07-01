@@ -69,8 +69,9 @@ async fn route_post_login(
 	// Create the response and redirects
 	let mut builder = HttpResponse::Found();
 	let session = Session::new(data.clone(), token_set.unwrap());
-	session.api().await?;
-	session.response(&mut builder, SessionFlags::COOKIES)?;
+	session
+		.response(&mut builder, SessionFlags::COOKIES)
+		.await?;
 	if let Some(ref url) = query.url {
 		builder.header("location", url.clone());
 	} else {
@@ -84,10 +85,12 @@ async fn route_post_login(
 ///
 async fn route_logout(data: web::Data<Data>) -> Result<impl Responder, Error> {
 	let url = data.provider.get_logout_url();
-	let session = Session::clear(data);
+	let session = Session::logout(data);
 	let mut builder = HttpResponse::Found();
 	builder.header("location", url);
-	session.response(&mut builder, SessionFlags::COOKIES)?;
+	session
+		.response(&mut builder, SessionFlags::COOKIES)
+		.await?;
 	Ok(builder.finish())
 }
 
@@ -113,8 +116,9 @@ async fn route_callback(
 	}
 	let mut builder = HttpResponse::Found();
 	let session = Session::new(data.clone(), token_set.unwrap());
-	session.api().await?;
-	session.response(&mut builder, SessionFlags::COOKIES)?;
+	session
+		.response(&mut builder, SessionFlags::COOKIES)
+		.await?;
 	{
 		let mut location: String = String::from("/");
 		if query.state.is_some() {
@@ -137,10 +141,11 @@ async fn route_callback(
 async fn route_refresh(data: web::Data<Data>, req: HttpRequest) -> Result<impl Responder, Error> {
 	let mut session = Session::from_request(data, &req);
 	session.validate(true).await?;
-	session.api().await?;
 
 	let mut builder = HttpResponse::Ok();
-	session.response(&mut builder, SessionFlags::COOKIES)?;
+	session
+		.response(&mut builder, SessionFlags::COOKIES)
+		.await?;
 
 	let userinfo = session.get_userinfo();
 	if let Some(userinfo) = userinfo {
@@ -168,10 +173,11 @@ async fn route_refresh(data: web::Data<Data>, req: HttpRequest) -> Result<impl R
 async fn route_validate(data: web::Data<Data>, req: HttpRequest) -> Result<impl Responder, Error> {
 	let mut session = Session::from_request(data, &req);
 	session.validate(true).await?;
-	session.api().await?;
 
 	let mut builder = HttpResponse::Ok();
-	session.response(&mut builder, SessionFlags::X_AUTH_HEADERS)?;
+	session
+		.response(&mut builder, SessionFlags::X_AUTH_HEADERS)
+		.await?;
 	Ok(builder.finish())
 }
 

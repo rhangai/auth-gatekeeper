@@ -26,6 +26,7 @@ pub struct Settings {
 #[derive(Clone, Debug, Deserialize)]
 pub struct SettingsApi {
 	pub id_token_endpoint: Option<String>,
+	pub logout_endpoint: Option<String>,
 }
 
 ///
