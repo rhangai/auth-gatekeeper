@@ -32,6 +32,11 @@ struct AuthLoginForm {
 	password: String,
 }
 
+#[derive(Deserialize)]
+struct AuthForwardAuthQuery {
+	redirect: Option<String>,
+}
+
 ///
 /// Redirect to the login url using authorization_code flow
 ///
@@ -54,6 +59,7 @@ async fn route_login(
 ///
 async fn route_post_login(
 	data: web::Data<Data>,
+	req: HttpRequest,
 	query: web::Query<AuthLoginQuery>,
 	form: web::Form<AuthLoginForm>,
 ) -> Result<impl Responder, Error> {
@@ -70,7 +76,7 @@ async fn route_post_login(
 	let mut builder = HttpResponse::Found();
 	let session = Session::new(data.clone(), token_set.unwrap());
 	session
-		.response(&mut builder, SessionFlags::COOKIES)
+		.response(&req, &mut builder, SessionFlags::COOKIES)
 		.await?;
 	if let Some(ref url) = query.url {
 		builder.header("location", url.clone());
@@ -83,13 +89,13 @@ async fn route_post_login(
 ///
 /// Logout
 ///
-async fn route_logout(data: web::Data<Data>) -> Result<impl Responder, Error> {
+async fn route_logout(data: web::Data<Data>, req: HttpRequest) -> Result<impl Responder, Error> {
 	let url = data.provider.get_logout_url();
 	let session = Session::logout(data);
 	let mut builder = HttpResponse::Found();
 	builder.header("location", url);
 	session
-		.response(&mut builder, SessionFlags::COOKIES)
+		.response(&req, &mut builder, SessionFlags::COOKIES)
 		.await?;
 	Ok(builder.finish())
 }
@@ -99,6 +105,7 @@ async fn route_logout(data: web::Data<Data>) -> Result<impl Responder, Error> {
 ///
 async fn route_callback(
 	data: web::Data<Data>,
+	req: HttpRequest,
 	query: web::Query<CallbackQuery>,
 ) -> Result<impl Responder, Error> {
 	// No query code, so unauthorized
@@ -117,7 +124,7 @@ async fn route_callback(
 	let mut builder = HttpResponse::Found();
 	let session = Session::new(data.clone(), token_set.unwrap());
 	session
-		.response(&mut builder, SessionFlags::COOKIES)
+		.response(&req, &mut builder, SessionFlags::COOKIES)
 		.await?;
 	{
 		let mut location: String = String::from("/");
@@ -144,7 +151,7 @@ async fn route_refresh(data: web::Data<Data>, req: HttpRequest) -> Result<impl R
 
 	let mut builder = HttpResponse::Ok();
 	session
-		.response(&mut builder, SessionFlags::COOKIES)
+		.response(&req, &mut builder, SessionFlags::COOKIES)
 		.await?;
 
 	let userinfo = session.get_userinfo();
@@ -176,8 +183,29 @@ async fn route_validate(data: web::Data<Data>, req: HttpRequest) -> Result<impl 
 
 	let mut builder = HttpResponse::Ok();
 	session
-		.response(&mut builder, SessionFlags::X_AUTH_HEADERS)
+		.response(&req, &mut builder, SessionFlags::X_AUTH_HEADERS)
 		.await?;
+	Ok(builder.finish())
+}
+
+///
+/// Endpoint middleware for traefik
+///
+async fn route_forward_auth(
+	data: web::Data<Data>,
+	req: HttpRequest,
+	query: web::Query<AuthForwardAuthQuery>,
+) -> Result<impl Responder, Error> {
+	let mut session = Session::from_request(data, &req);
+	session.validate(true).await?;
+
+	let mut builder = HttpResponse::Ok();
+	let flags = if query.redirect.is_some() {
+		SessionFlags::FORWARD_AUTH | SessionFlags::FORWARD_AUTH_REDIRECT
+	} else {
+		SessionFlags::FORWARD_AUTH
+	};
+	session.response(&req, &mut builder, flags).await?;
 	Ok(builder.finish())
 }
 
@@ -211,7 +239,8 @@ impl Handler {
 			.route("/logout", web::get().to(route_logout))
 			.route("/auth/callback", web::get().to(route_callback))
 			.route("/auth/refresh", web::get().to(route_refresh))
-			.route("/auth/validate", web::get().to(route_validate));
+			.route("/auth/validate", web::get().to(route_validate))
+			.route("/auth/forward-auth", web::get().to(route_forward_auth));
 		Ok(())
 	}
 }

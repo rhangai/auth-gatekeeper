@@ -19,8 +19,10 @@ enum SessionStatus {
 
 bitflags! {
 	pub struct SessionFlags: u8 {
-		const X_AUTH_HEADERS = 0x01;
-		const COOKIES   = 0x02;
+		const X_AUTH_HEADERS        = 0x01;
+		const COOKIES               = 0x02;
+		const FORWARD_AUTH          = 0x04;
+		const FORWARD_AUTH_REDIRECT = 0x08;
 	}
 }
 
@@ -194,9 +196,11 @@ impl Session {
 	///
 	pub async fn response(
 		&self,
+		req: &HttpRequest,
 		builder: &mut ResponseBuilder,
 		flags: SessionFlags,
 	) -> Result<(), Error> {
+		let mut flags = flags;
 		let mut cookies: Vec<cookie::Cookie<'static>> = Vec::new();
 		match self.status {
 			SessionStatus::Invalid => {
@@ -205,17 +209,31 @@ impl Session {
 					self.api_logout(&mut cookies).await?;
 				}
 				builder.status(StatusCode::UNAUTHORIZED);
+				if flags.contains(SessionFlags::FORWARD_AUTH) {
+					if flags.contains(SessionFlags::FORWARD_AUTH_REDIRECT) {
+						let location = self.response_forward_auth_get_redirect(req);
+						builder.status(StatusCode::FOUND);
+						builder.header("location", location);
+					}
+					flags = flags | SessionFlags::COOKIES;
+				}
 			}
 			SessionStatus::Logout => {
 				self.response_save_session(&mut cookies, None)?;
 				self.api_logout(&mut cookies).await?;
 			}
 			SessionStatus::New(ref userinfo) => {
+				if flags.contains(SessionFlags::FORWARD_AUTH) {
+					flags = flags | SessionFlags::X_AUTH_HEADERS;
+				}
 				self.response_save_session(&mut cookies, self.token_set.clone())?;
 				self.response_set_userinfo(builder, &userinfo, flags)?;
 				self.api_id_token(&mut cookies).await?;
 			}
 			SessionStatus::Logged(ref userinfo) => {
+				if flags.contains(SessionFlags::FORWARD_AUTH) {
+					flags = flags | SessionFlags::X_AUTH_HEADERS;
+				}
 				self.response_set_userinfo(builder, &userinfo, flags)?;
 			}
 		}
@@ -232,6 +250,29 @@ impl Session {
 			}
 		}
 		Ok(())
+	}
+	///
+	/// GEt the redirect uri from forward auth
+	///
+	fn response_forward_auth_get_redirect(&self, req: &HttpRequest) -> String {
+		let proto = req
+			.headers()
+			.get("x-forwarded-proto")
+			.and_then(|h| h.to_str().ok());
+		let host = req
+			.headers()
+			.get("x-forwarded-host")
+			.and_then(|h| h.to_str().ok());
+		let location = req
+			.headers()
+			.get("x-forwarded-uri")
+			.and_then(|h| h.to_str().ok());
+		format!(
+			"{}://{}/login?url={}",
+			proto.unwrap_or("http"),
+			host.unwrap_or(""),
+			location.unwrap_or("/")
+		)
 	}
 	///
 	/// Save the userinfo
