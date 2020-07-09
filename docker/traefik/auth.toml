@@ -1,0 +1,14 @@
+[http.middlewares]
+	[http.middlewares.auth.forwardAuth]
+		address = "http://127.0.0.1:8088/auth/validate"
+
+[http.routers]
+	[http.routers.auth-routes]
+		rule = "Path(`/login`) || Path(`/logout`) || Path(`/auth/callback`) || Path(`/auth/refresh`)"
+		service = "auth"
+		priority = 9999
+
+[http.services]
+	[http.services.auth.loadBalancer]
+		[[http.services.auth.loadBalancer.servers]]
+			url = "http://127.0.0.1:8088/"
