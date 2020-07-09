@@ -14,13 +14,11 @@ FROM traefik as traefik
 FROM debian:buster-slim
 RUN apt-get update && \ 
 	apt-get install -y curl supervisor && \
-	rm -rf /var/lib/apt/lists/* && \
-	mkdir -p /etc/traefik /etc/traefik/providers
+	rm -rf /var/lib/apt/lists/*
 
 COPY --from=traefik /usr/local/bin/traefik /usr/local/bin/traefik
 COPY ./docker/traefik/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-COPY ./docker/traefik/traefik.toml /etc/traefik/traefik.toml
-COPY ./docker/traefik/auth.toml /etc/traefik/providers/auth.toml
+COPY ./docker/traefik/etc /etc/traefik
 COPY --from=builder /opt/auth-gatekeeper/target/release/auth-gatekeeper /opt/auth-gatekeeper/auth-gatekeeper
 
 RUN mkdir -p /var/run/auth-gatekeeper

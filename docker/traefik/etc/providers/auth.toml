@@ -1,6 +1,9 @@
 [http.middlewares]
 	[http.middlewares.auth.forwardAuth]
-		address = "http://127.0.0.1:8088/auth/validate"
+		address = "http://127.0.0.1:8088/auth/forward-auth"
+		authResponseHeaders = ["x-auth-userinfo", "x-auth-data"]
+	[http.middlewares.auth-redirect.forwardAuth]
+		address = "http://127.0.0.1:8088/auth/forward-auth?redirect"
 
 [http.routers]
 	[http.routers.auth-routes]

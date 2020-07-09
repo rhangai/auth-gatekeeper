@@ -6,13 +6,6 @@
 
 [ping]
   entryPoint = "ping"
-  
-[api]
-  dashboard = true
-  insecure = true
 
 [providers.file]
   directory = "/etc/traefik/providers"
-
-[log]
-  level = "DEBUG"
