@@ -1,17 +1,18 @@
 [http.middlewares]
-	[http.middlewares.auth.forwardAuth]
-		address = "http://127.0.0.1:8088/auth/forward-auth"
-		authResponseHeaders = ["x-auth-userinfo", "x-auth-data"]
-	[http.middlewares.auth-redirect.forwardAuth]
-		address = "http://127.0.0.1:8088/auth/forward-auth?redirect"
+  [http.middlewares.auth.forwardAuth]
+    address = "http://127.0.0.1:8088/auth/forward-auth"
+    authResponseHeaders = ["x-auth-userinfo", "x-auth-data"]
+  [http.middlewares.auth-redirect.forwardAuth]
+    address = "http://127.0.0.1:8088/auth/forward-auth?redirect"
+    authResponseHeaders = ["x-auth-userinfo", "x-auth-data"]
 
 [http.routers]
-	[http.routers.auth-routes]
-		rule = "Path(`/login`) || Path(`/logout`) || Path(`/auth/callback`) || Path(`/auth/refresh`)"
-		service = "auth"
-		priority = 9999
+  [http.routers.auth-routes]
+    rule = "Path(`/login`) || Path(`/logout`) || Path(`/auth/callback`) || Path(`/auth/refresh`)"
+    service = "auth"
+    priority = 9999
 
 [http.services]
-	[http.services.auth.loadBalancer]
-		[[http.services.auth.loadBalancer.servers]]
-			url = "http://127.0.0.1:8088/"
+  [http.services.auth.loadBalancer]
+    [[http.services.auth.loadBalancer.servers]]
+      url = "http://127.0.0.1:8088/"
