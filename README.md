@@ -6,7 +6,7 @@ Usage with docker-compose
 version: '3.7'
 services:
     proxy:
-        image: rhangai/auth-gatekeeper:nginx
+        image: rhangai/auth-gatekeeper:traefik
     environment:
         - AUTH_GATEKEEPER_SECRET=
         - AUTH_GATEKEEPER_PROVIDER=
@@ -17,18 +17,25 @@ services:
         - AUTH_GATEKEEPER_PROVIDER_USERINFO_URL=
         - AUTH_GATEKEEPER_PROVIDER_CALLBACK_URL=
         - |
-            NGINX_DEFAULT_CONFIG=
-            server {
-              include auth-gatekeeper/server.conf;
+            TRAEFIK_CONFIG=
+            [http.routers]
+              [http.routers.backend]
+                rule = "PathPrefix(`/api/`)"
+                middlewares = ["auth"]
+                service = "backend"
+              [http.routers.frontend]
+                rule = "PathPrefix(`/`)"
+                priority = 1
+                middlewares = ["auth-redirect"]
+                service = "frontend"
 
-              root /var/www/html/;
-              index index.html;
-
-              location /restrict/ {
-                include auth-gatekeeper/auth-request.conf;
-                error_page 401 = @auth-redirect;
-              }
-            }
+            [http.services]
+              [http.services.backend.loadBalancer]
+                [[http.services.backend.loadBalancer.servers]]
+                  url = "http://some-backend-server/"
+              [http.services.frontend.loadBalancer]
+                [[http.services.frontend.loadBalancer.servers]]
+                  url = "http://some-frontend-ip/"
 ```
 
 ## Configuration
@@ -44,4 +51,25 @@ services:
 -   `AUTH_GATEKEEPER_PROVIDER_TOKEN_URL`: Token endpoint
 -   `AUTH_GATEKEEPER_PROVIDER_USERINFO_URL`: Userinfo endpoint (Not used in keycloak mode)
 -   `AUTH_GATEKEEPER_PROVIDER_CALLBACK_URL`: Callback url
--   `NGINX_DEFAULT_CONFIG`: Nginx configuration to use
+-   `TRAEFIK_DEBUG`: Set to `1` to enable debug
+-   `TRAEFIK_CONFIG`: Traefik configuration to use
+
+## Traefik config
+
+When using traefik, some pre-defined config are placed on `/etc/traefik/providers/auth.toml` file inside the container.
+
+### Middlewares
+
+-   `auth`: Authenticate only, and returns a 401 if not authorized
+-   `auth-redirect`: Authenticate, and send the user to the login page
+
+### Routes
+
+-   `/login?url=`: Login the user and redirects it to the page
+-   `/logout`: Logout the user
+-   `/auth/callback`: Callback for the oauth
+-   `/auth/refresh`: Refresh the session, and returns the userdata. Useful to get user info when logged.
+
+### Services
+
+-   `auth`: The authentication service inside the container
