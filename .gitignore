@@ -1,2 +1,4 @@
 # Rust files
 /target
+/.env.debug
+/docker-compose.override.yml

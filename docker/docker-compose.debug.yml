@@ -1,0 +1,42 @@
+version: '3.7'
+services:
+  auth-gatekeeper:
+    image: auth-gatekeeper:traefik-debug
+    build:
+      context: '../'
+      dockerfile: './docker/traefik/debug.dockerfile'
+    environment:
+      - AUTH_GATEKEEPER_SECRET=debug-secret
+      - AUTH_GATEKEEPER_JWT_SECRET=debug-jwt-secret
+      - AUTH_GATEKEEPER_PROVIDER=${AUTH_GATEKEEPER_PROVIDER:-oidc}
+      - AUTH_GATEKEEPER_PROVIDER_CLIENT_ID
+      - AUTH_GATEKEEPER_PROVIDER_CLIENT_SECRET
+      - AUTH_GATEKEEPER_PROVIDER_AUTH_URL
+      - AUTH_GATEKEEPER_PROVIDER_TOKEN_URL
+      - AUTH_GATEKEEPER_PROVIDER_USERINFO_URL
+      - AUTH_GATEKEEPER_PROVIDER_END_SESSION_URL
+      - AUTH_GATEKEEPER_PROVIDER_CALLBACK_URL=http://debug.gateway.localhost/auth/callback
+      - AUTH_GATEKEEPER_PROVIDER_LOGOUT_REDIRECT_URL=http://debug.gateway.localhost/
+      - |
+        TRAEFIK_CONFIG=
+        [http.routers]        
+          [http.routers.server]       
+            rule = "PathPrefix(`/`)"
+            middlewares = ["auth-redirect"]
+            service = "server"
+
+        [http.services]
+          [http.services.server.loadBalancer]
+            [[http.services.server.loadBalancer.servers]]
+              url = "http://server/"
+
+    volumes:
+      - ../:/opt/auth-gatekeeper
+
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.auth-gateway.rule=Host(`debug.gateway.localhost`)'
+      - 'traefik.http.services.auth-gateway.loadbalancer.server.port=80'
+
+  server:
+    image: nginx
