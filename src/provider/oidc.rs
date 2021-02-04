@@ -8,6 +8,7 @@ pub struct ProviderOIDC {
 	client: reqwest::Client,
 	client_id: String,
 	client_secret: String,
+	scope: String,
 	auth_url: Url,
 	token_url: Url,
 	userinfo_url: Url,
@@ -36,6 +37,11 @@ impl ProviderOIDC {
 			client: reqwest::Client::new(),
 			client_id: settings.provider.client_id.clone(),
 			client_secret: settings.provider.client_secret.clone(),
+			scope: settings
+				.provider
+				.scope
+				.clone()
+				.unwrap_or_else(|| String::from("openid email profile offline_access")),
 			auth_url: auth_url,
 			token_url: token_url,
 			userinfo_url: userinfo_url,
@@ -96,7 +102,7 @@ impl Provider for ProviderOIDC {
 			let mut query_pairs = url.query_pairs_mut();
 			query_pairs
 				.append_pair("response_type", "code")
-				.append_pair("scope", "openid email profile offline_access")
+				.append_pair("scope", &self.scope)
 				.append_pair("client_id", &self.client_id)
 				.append_pair("redirect_uri", self.callback_url.as_str());
 			if !state.is_empty() {

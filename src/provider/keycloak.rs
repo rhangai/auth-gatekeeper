@@ -35,7 +35,7 @@ impl ProviderKeycloak {
 
 	/// Decode a JWT sent by keycloak
 	fn jwt_decode(&self, jwt: &str) -> Option<JsonValue> {
-		let decoded = jsonwebtoken::dangerous_unsafe_decode::<JsonValue>(jwt);
+		let decoded = jsonwebtoken::dangerous_insecure_decode::<JsonValue>(jwt);
 		if decoded.is_err() {
 			return None;
 		}

@@ -46,6 +46,7 @@ pub struct SettingsProvider {
 	pub provider: String,
 	pub client_id: String,
 	pub client_secret: String,
+	pub scope: Option<String>,
 	pub auth_url: String,
 	pub token_url: String,
 	pub userinfo_url: String,
