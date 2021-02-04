@@ -8,10 +8,9 @@ RUN mkdir -p /var/run/auth-gatekeeper
 ENV AUTH_GATEKEEPER_LISTEN=http://127.0.0.1:8088/
 
 COPY --from=traefik /usr/local/bin/traefik /usr/local/bin/traefik
-COPY ./docker/traefik/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-COPY ./docker/traefik/etc /etc/traefik
+ADD ./docker/etc /etc
 
-COPY ./docker/traefik/docker-entrypoint.sh /docker-entrypoint.sh
+COPY ./docker/scripts/docker-entrypoint.sh /docker-entrypoint.sh
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["traefik", "--configFile=/etc/traefik/traefik.debug.toml"]
 EXPOSE 80

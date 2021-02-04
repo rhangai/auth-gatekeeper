@@ -1,10 +1,18 @@
 [http.middlewares]
-  [http.middlewares.auth.forwardAuth]
+  [http.middlewares.auth-internal-forward.forwardAuth]
     address = "http://127.0.0.1:8088/auth/forward-auth"
     authResponseHeaders = ["x-auth-userinfo", "x-auth-data"]
-  [http.middlewares.auth-redirect.forwardAuth]
+  [http.middlewares.auth-internal-forward-redirect.forwardAuth]
     address = "http://127.0.0.1:8088/auth/forward-auth?redirect"
     authResponseHeaders = ["x-auth-userinfo", "x-auth-data"]
+  [http.middlewares.auth-internal-cache.headers.customResponseHeaders]
+    etag = ""
+    last-modified = ""
+    cache-control = "no-cache, no-store, must-revalidate"
+  [http.middlewares.auth.chain]
+    middlewares = ["auth-internal-forward", "auth-internal-cache"]
+  [http.middlewares.auth-redirect.chain]
+    middlewares = ["auth-internal-forward-redirect", "auth-internal-cache"]
 
 [http.routers]
   [http.routers.auth-routes]

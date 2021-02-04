@@ -1,10 +1,10 @@
 version: '3.7'
 services:
   auth-gatekeeper:
-    image: auth-gatekeeper:traefik-debug
+    image: auth-gatekeeper:debug
     build:
       context: '../'
-      dockerfile: './docker/traefik/debug.dockerfile'
+      dockerfile: './docker/debug.dockerfile'
     environment:
       - AUTH_GATEKEEPER_SECRET=debug-secret
       - AUTH_GATEKEEPER_JWT_SECRET=debug-jwt-secret
