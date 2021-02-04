@@ -8,14 +8,15 @@ pub enum Error {
 
 	SettingsError(&'static str),
 	SettingsConfigError(config::ConfigError),
-	SettingsUrlParseError(url::ParseError),
+	SettingsUrlParseError(actix_web::http::uri::InvalidUri),
 	SettingsShowHelpError,
 
 	JwtError(jsonwebtoken::errors::Error),
 
 	JsonError(serde_json::Error),
 
-	RequestError(reqwest::Error),
+	RequestError(actix_web::client::SendRequestError),
+	RequestJsonError(actix_web::client::JsonPayloadError),
 
 	ApiError,
 }
@@ -67,15 +68,20 @@ impl From<serde_json::Error> for Error {
 }
 
 /// Request error
-impl From<reqwest::Error> for Error {
-	fn from(error: reqwest::Error) -> Error {
+impl From<actix_web::client::SendRequestError> for Error {
+	fn from(error: actix_web::client::SendRequestError) -> Error {
 		Error::RequestError(error)
+	}
+}
+impl From<actix_web::client::JsonPayloadError> for Error {
+	fn from(error: actix_web::client::JsonPayloadError) -> Error {
+		Error::RequestJsonError(error)
 	}
 }
 
 /// Converts from an URL parser error
-impl From<url::ParseError> for Error {
-	fn from(error: url::ParseError) -> Error {
+impl From<actix_web::http::uri::InvalidUri> for Error {
+	fn from(error: actix_web::http::uri::InvalidUri) -> Error {
 		Error::SettingsUrlParseError(error)
 	}
 }

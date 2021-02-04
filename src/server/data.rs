@@ -1,6 +1,6 @@
 use crate::api::Api;
 use crate::error::Error;
-use crate::provider::{create_provider, Provider};
+use crate::provider::{create_provider, ProviderBox};
 use crate::settings::Settings;
 use crate::util::crypto::{Crypto, RandomPtr};
 use crate::util::jwt::JWT;
@@ -12,7 +12,7 @@ pub struct Data {
 	pub crypto: Crypto,
 	pub jwt: JWT,
 	pub api: Api,
-	pub provider: Box<dyn Provider>,
+	pub provider: ProviderBox,
 }
 
 impl Data {

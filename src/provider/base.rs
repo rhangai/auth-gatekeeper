@@ -20,7 +20,6 @@ pub struct Userinfo {
 	pub expires_at: Option<std::time::SystemTime>,
 }
 
-#[async_trait::async_trait]
 pub trait Provider {
 	///
 	/// Get the authorization url
@@ -30,24 +29,4 @@ pub trait Provider {
 	/// Get the logout url
 	///
 	fn get_logout_url(&self) -> String;
-	///
-	/// Get the userinfo according to the access_token
-	///
-	async fn userinfo(&self, access_token: &str) -> Result<Option<Userinfo>, Error>;
-	///
-	/// Perform a grant_type: authorization_code request
-	///
-	async fn grant_authorization_code(&self, code: &str) -> Result<Option<TokenSet>, Error>;
-	///
-	/// Perform a grant_type: password request
-	///
-	async fn grant_password(
-		&self,
-		username: &str,
-		password: &str,
-	) -> Result<Option<TokenSet>, Error>;
-	///
-	/// Perform a new grant_type: refresh_token request
-	///
-	async fn grant_refresh_token(&self, refresh_token: &str) -> Result<Option<TokenSet>, Error>;
 }

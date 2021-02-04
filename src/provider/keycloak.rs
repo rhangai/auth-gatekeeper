@@ -42,26 +42,11 @@ impl ProviderKeycloak {
 		let claims = decoded.unwrap().claims;
 		Some(claims)
 	}
-}
 
-#[async_trait::async_trait]
-impl Provider for ProviderKeycloak {
-	///
-	/// Same as oidc authorization url
-	///
-	fn get_authorization_url(&self, state: String) -> String {
-		self.oidc.get_authorization_url(state)
-	}
-	///
-	/// Same as oidc authorization url
-	///
-	fn get_logout_url(&self) -> String {
-		self.oidc.get_logout_url()
-	}
 	///
 	/// When using keycloak, the access_token itself contains the userinfo
 	///
-	async fn userinfo(&self, access_token: &str) -> Result<Option<Userinfo>, Error> {
+	pub async fn userinfo(&self, access_token: &str) -> Result<Option<Userinfo>, Error> {
 		let claims = self.jwt_decode(access_token);
 		if claims.is_none() {
 			return Ok(None);
@@ -82,14 +67,14 @@ impl Provider for ProviderKeycloak {
 	///
 	/// Grant the TokenSet code using the oidc, then normalize the token
 	///
-	async fn grant_authorization_code(&self, code: &str) -> Result<Option<TokenSet>, Error> {
+	pub async fn grant_authorization_code(&self, code: &str) -> Result<Option<TokenSet>, Error> {
 		let token_set = self.oidc.grant_authorization_code(code).await?;
 		self.normalize_token_set(token_set)
 	}
 	///
 	/// Grant the TokenSet using the oidc, then normalize the token
 	///
-	async fn grant_password(
+	pub async fn grant_password(
 		&self,
 		username: &str,
 		password: &str,
@@ -99,8 +84,26 @@ impl Provider for ProviderKeycloak {
 	///
 	/// Get the OIDC authorization url
 	///
-	async fn grant_refresh_token(&self, refresh_token: &str) -> Result<Option<TokenSet>, Error> {
+	pub async fn grant_refresh_token(
+		&self,
+		refresh_token: &str,
+	) -> Result<Option<TokenSet>, Error> {
 		let token_set = self.oidc.grant_refresh_token(refresh_token).await?;
 		self.normalize_token_set(token_set)
+	}
+}
+
+impl Provider for ProviderKeycloak {
+	///
+	/// Same as oidc authorization url
+	///
+	fn get_authorization_url(&self, state: String) -> String {
+		self.oidc.get_authorization_url(state)
+	}
+	///
+	/// Same as oidc authorization url
+	///
+	fn get_logout_url(&self) -> String {
+		self.oidc.get_logout_url()
 	}
 }

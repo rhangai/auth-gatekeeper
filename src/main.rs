@@ -9,15 +9,14 @@ mod session;
 mod settings;
 mod util;
 
-use actix_web::{App, HttpServer};
-use reqwest::Url;
+use actix_web::{http::Uri, App, HttpServer};
 
 ///
 /// Entrypoint
 ///
 /// Initializes the server and print the configuration help if needed
 ///
-#[actix_rt::main]
+#[actix_web::main]
 async fn main() -> std::io::Result<()> {
 	env_logger::init();
 	let random = util::crypto::Crypto::create_random();
@@ -31,21 +30,18 @@ async fn main() -> std::io::Result<()> {
 	// Check the urls to listen to
 	let listen_list = listen.split_terminator(',');
 	for listen in listen_list {
-		let url = Url::parse(listen);
+		let url = listen.parse::<Uri>();
 		if url.is_err() {
 			panic!("Invalid listen url: {}", listen);
 		}
 
 		let url = url.unwrap();
-		if url.scheme() == "http" {
-			let addr = format!(
-				"{}:{}",
-				url.host().unwrap(),
-				url.port_or_known_default().unwrap()
-			);
+		let scheme = url.scheme_str().unwrap_or("");
+		if scheme == "http" {
+			let addr = format!("{}:{}", url.host().unwrap(), url.port_u16().unwrap_or(80));
 			log::info!("Listening on http://{}", addr);
 			server = server.bind(addr)?;
-		} else if url.scheme() == "unix" {
+		} else if scheme == "unix" {
 			log::info!("Listening on unix:{}", url.path());
 			server = server.bind_uds(url.path())?;
 		} else {

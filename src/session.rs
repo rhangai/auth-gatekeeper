@@ -1,8 +1,9 @@
 use super::error::Error;
 use super::provider::{TokenSet, Userinfo};
 use super::server::data::Data;
-use actix_http::{http::StatusCode, ResponseBuilder};
-use actix_web::{cookie, web, HttpMessage, HttpRequest};
+use actix_web::{
+	cookie, dev::HttpResponseBuilder, http::StatusCode, web, HttpMessage, HttpRequest,
+};
 
 #[derive(Clone)]
 struct SessionTokenSet {
@@ -197,7 +198,7 @@ impl Session {
 	pub async fn response(
 		&self,
 		req: &HttpRequest,
-		builder: &mut ResponseBuilder,
+		builder: &mut HttpResponseBuilder,
 		flags: SessionFlags,
 	) -> Result<(), Error> {
 		let mut flags = flags;
@@ -279,7 +280,7 @@ impl Session {
 	///
 	fn response_set_userinfo(
 		&self,
-		builder: &mut ResponseBuilder,
+		builder: &mut HttpResponseBuilder,
 		userinfo: &Option<Userinfo>,
 		flags: SessionFlags,
 	) -> Result<(), Error> {
@@ -344,7 +345,7 @@ impl Session {
 			.path("/")
 			.http_only(true);
 		if value.is_none() {
-			builder = builder.expires(time::at_utc(time::Timespec::new(1, 0)));
+			builder = builder.expires(time::OffsetDateTime::from_unix_timestamp(0));
 		}
 		Ok(builder.finish())
 	}
