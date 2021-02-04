@@ -96,7 +96,7 @@ impl Provider for ProviderOIDC {
 			let mut query_pairs = url.query_pairs_mut();
 			query_pairs
 				.append_pair("response_type", "code")
-				.append_pair("scope", "openid email profile")
+				.append_pair("scope", "openid email profile offline_access")
 				.append_pair("client_id", &self.client_id)
 				.append_pair("redirect_uri", self.callback_url.as_str());
 			if !state.is_empty() {
@@ -126,7 +126,7 @@ impl Provider for ProviderOIDC {
 		let res = self
 			.client
 			.get(self.userinfo_url.as_str())
-			.header("authorization", format!("bearer {}", access_token))
+			.header("authorization", format!("Bearer {}", access_token))
 			.send()
 			.await;
 
