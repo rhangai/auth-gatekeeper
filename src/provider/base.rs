@@ -1,5 +1,3 @@
-use crate::error::Error;
-
 ///
 /// The token set
 ///
