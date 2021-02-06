@@ -1,14 +1,15 @@
 use crate::error::Error;
 use crate::settings::Settings;
 use crate::util::jwt::JsonValue;
-use actix_web::{client::Client, cookie, http::Uri};
+use actix_web::{client::Client, cookie};
 use serde::Serialize;
 use std::collections::HashMap;
+use url::Url;
 
 pub struct Api {
 	client: Client,
-	id_token_endpoint: Option<Uri>,
-	logout_endpoint: Option<Uri>,
+	id_token_endpoint: Option<Url>,
+	logout_endpoint: Option<Url>,
 }
 
 ///
@@ -52,15 +53,15 @@ impl Api {
 	async fn request_endpoint<T, F>(
 		&self,
 		cookies: &mut Vec<cookie::Cookie<'static>>,
-		endpoint: &Option<Uri>,
+		endpoint: &Option<Url>,
 		data_fn: F,
 	) -> Result<(), Error>
 	where
-		T: Serialize,
+		T: Serialize + std::fmt::Debug,
 		F: std::ops::FnOnce() -> Option<T>,
 	{
 		if let Some(ref endpoint) = endpoint {
-			let request = self.client.post(endpoint);
+			let request = self.client.post(endpoint.as_str());
 			let data = data_fn();
 			let response = if let Some(data) = data {
 				request.send_json(&data).await?
@@ -91,10 +92,10 @@ impl Api {
 	}
 }
 
-fn parse_url(url: &Option<String>) -> Result<Option<Uri>, Error> {
+fn parse_url(url: &Option<String>) -> Result<Option<Url>, Error> {
 	if let Some(ref endpoint) = url {
 		if !endpoint.is_empty() {
-			return Ok(Some(endpoint.parse::<Uri>()?));
+			return Ok(Some(Url::parse(endpoint)?));
 		}
 	}
 	Ok(None)

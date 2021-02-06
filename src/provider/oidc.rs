@@ -1,18 +1,19 @@
 use super::base::{Provider, TokenSet, Userinfo};
 use crate::error::Error;
 use crate::settings::Settings;
-use actix_web::{client::Client, http::Uri, ResponseError};
+use actix_web::{client::Client, ResponseError};
+use url::Url;
 
 pub struct ProviderOIDC {
 	client_id: String,
 	client_secret: String,
 	scope: String,
-	auth_url: Uri,
-	token_url: Uri,
-	userinfo_url: Uri,
-	end_session_url: Option<Uri>,
-	callback_url: Uri,
-	logout_redirect_url: Uri,
+	auth_url: Url,
+	token_url: Url,
+	userinfo_url: Url,
+	end_session_url: Option<Url>,
+	callback_url: Url,
+	logout_redirect_url: Url,
 }
 
 impl ProviderOIDC {
@@ -20,13 +21,13 @@ impl ProviderOIDC {
 	/// Create a new OpenID Connect provider
 	///
 	pub fn new(settings: &Settings) -> Result<Self, Error> {
-		let auth_url = settings.provider.auth_url.parse::<Uri>()?;
-		let token_url = settings.provider.token_url.parse::<Uri>()?;
-		let userinfo_url = settings.provider.userinfo_url.parse::<Uri>()?;
-		let callback_url = settings.provider.callback_url.parse::<Uri>()?;
-		let logout_redirect_url = settings.provider.logout_redirect_url.parse::<Uri>()?;
+		let auth_url = Url::parse(&settings.provider.auth_url)?;
+		let token_url = Url::parse(&settings.provider.token_url)?;
+		let userinfo_url = Url::parse(&settings.provider.userinfo_url)?;
+		let callback_url = Url::parse(&settings.provider.callback_url)?;
+		let logout_redirect_url = Url::parse(&settings.provider.logout_redirect_url)?;
 		let end_session_url = if let Some(ref url) = &settings.provider.end_session_url {
-			Some(url.parse::<Uri>()?)
+			Some(url.parse::<Url>()?)
 		} else {
 			None
 		};
@@ -55,7 +56,10 @@ impl ProviderOIDC {
 		form: &T,
 	) -> Result<Option<TokenSet>, Error> {
 		let client = Client::new();
-		let mut res = client.post(&self.token_url).send_form(&form).await?;
+		let mut res = client
+			.post(self.token_url.as_str())
+			.send_form(&form)
+			.await?;
 		let body = res.json::<serde_json::Value>().await?;
 
 		let access_token = body["access_token"].as_str();
@@ -77,7 +81,7 @@ impl ProviderOIDC {
 	pub async fn userinfo(&self, access_token: &str) -> Result<Option<Userinfo>, Error> {
 		let client = Client::new();
 		let res = client
-			.get(self.userinfo_url.clone())
+			.get(self.userinfo_url.as_str())
 			.header("authorization", format!("Bearer {}", access_token))
 			.send();
 
@@ -85,7 +89,7 @@ impl ProviderOIDC {
 		if res.is_err() {
 			let error = res.unwrap_err();
 			let code = error.status_code();
-			if code == 400 {
+			if code == 400 || code == 401 {
 				return Ok(None);
 			}
 			return Err(Error::RequestError(error));
@@ -162,26 +166,19 @@ impl Provider for ProviderOIDC {
 	/// Get the OIDC authorization url
 	///
 	fn get_authorization_url(&self, state: String) -> String {
-		let mut builder = Uri::builder();
-
-		builder = builder.scheme(self.auth_url.scheme_str().unwrap_or("http"));
-		if let Some(authority) = self.auth_url.authority() {
-			builder = builder.authority(authority.clone());
-		}
-
+		let mut auth_url = self.auth_url.clone();
 		{
-			let mut query = qstring::QString::from(self.auth_url.query().unwrap_or(""));
-			query.add_pair(("response_type", "code"));
-			query.add_pair(("scope", &self.scope));
-			query.add_pair(("client_id", &self.client_id));
-			query.add_pair(("redirect_uri", self.callback_url.to_string()));
+			let mut query = auth_url.query_pairs_mut();
+			query
+				.append_pair("response_type", "code")
+				.append_pair("scope", &self.scope)
+				.append_pair("client_id", &self.client_id)
+				.append_pair("redirect_uri", self.callback_url.as_str());
 			if !state.is_empty() {
-				query.add_pair(("state", &state));
+				query.append_pair("state", &state);
 			}
-			let path_and_query = format!("{}?{}", self.auth_url.path(), query.to_string());
-			builder = builder.path_and_query(path_and_query);
 		}
-		builder.build().unwrap().to_string()
+		auth_url.to_string()
 	}
 	///
 	/// Get the OIDC logout url
@@ -192,20 +189,13 @@ impl Provider for ProviderOIDC {
 			return logout_url;
 		}
 
-		let mut builder = Uri::builder();
-		let end_session_url = self.end_session_url.clone().unwrap();
-
-		builder = builder.scheme(end_session_url.scheme_str().unwrap_or("http"));
-		if let Some(authority) = end_session_url.authority() {
-			builder = builder.authority(authority.clone());
-		}
-
+		let mut end_session_url = self.end_session_url.clone().unwrap();
 		{
-			let mut query = qstring::QString::from(end_session_url.query().unwrap_or(""));
-			query.add_pair(("redirect_uri", logout_url));
-			let path_and_query = format!("{}?{}", end_session_url.path(), query.to_string());
-			builder = builder.path_and_query(path_and_query);
+			let mut query = end_session_url.query_pairs_mut();
+			query
+				.append_pair("client_id", &self.client_id)
+				.append_pair("redirect_uri", &logout_url);
 		}
-		builder.build().unwrap().to_string()
+		end_session_url.to_string()
 	}
 }
