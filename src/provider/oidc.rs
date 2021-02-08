@@ -1,8 +1,14 @@
 use super::base::{Provider, TokenSet, Userinfo};
 use crate::error::Error;
 use crate::settings::Settings;
+use crate::util::jwt::JsonValue;
 use actix_web::{client::Client, ResponseError};
+use std::time::SystemTime;
 use url::Url;
+
+pub struct ProviderOIDCOptions {
+	pub userinfo_from_access_token: bool,
+}
 
 pub struct ProviderOIDC {
 	client_id: String,
@@ -14,13 +20,14 @@ pub struct ProviderOIDC {
 	end_session_url: Option<Url>,
 	callback_url: Url,
 	logout_redirect_url: Url,
+	options: ProviderOIDCOptions,
 }
 
 impl ProviderOIDC {
 	///
 	/// Create a new OpenID Connect provider
 	///
-	pub fn new(settings: &Settings) -> Result<Self, Error> {
+	pub fn new(settings: &Settings, options: ProviderOIDCOptions) -> Result<Self, Error> {
 		let auth_url = Url::parse(&settings.provider.auth_url)?;
 		let token_url = Url::parse(&settings.provider.token_url)?;
 		let userinfo_url = Url::parse(&settings.provider.userinfo_url)?;
@@ -46,8 +53,40 @@ impl ProviderOIDC {
 			end_session_url: end_session_url,
 			callback_url: callback_url,
 			logout_redirect_url,
+			options,
 		})
 	}
+	///
+	/// Get the id_token from the grant
+	///
+	fn get_id_token(&self, obj: &serde_json::Value) -> Option<JsonValue> {
+		let id_token = obj.get("id_token");
+		if id_token.is_none() {
+			return None;
+		}
+		let id_token = id_token.unwrap();
+		if let serde_json::Value::Null = id_token {
+			return None;
+		}
+		if let Some(ref id_token_str) = id_token.as_str() {
+			let decoded = self.jwt_decode(id_token_str);
+			if decoded.is_some() {
+				return decoded;
+			}
+		}
+		Some(id_token.clone())
+	}
+
+	/// Decode a JWT sent by keycloak
+	fn jwt_decode(&self, jwt: &str) -> Option<JsonValue> {
+		let decoded = jsonwebtoken::dangerous_insecure_decode::<JsonValue>(jwt);
+		if decoded.is_err() {
+			return None;
+		}
+		let claims = decoded.unwrap().claims;
+		Some(claims)
+	}
+
 	///
 	/// Grant a token
 	///
@@ -71,7 +110,7 @@ impl ProviderOIDC {
 			access_token: access_token.unwrap().to_owned(),
 			refresh_token: refresh_token.unwrap().to_owned(),
 			expires_in: body["expires_in"].as_i64(),
-			id_token: to_value(&body, "id_token"),
+			id_token: self.get_id_token(&body),
 		}))
 	}
 
@@ -79,6 +118,15 @@ impl ProviderOIDC {
 	/// Request the userinfo
 	///
 	pub async fn userinfo(&self, access_token: &str) -> Result<Option<Userinfo>, Error> {
+		if self.options.userinfo_from_access_token {
+			return self.get_userinfo_from_access_token(access_token).await;
+		}
+		self.get_userinfo_from_oidc(access_token).await
+	}
+	///
+	/// Request the userinfo using openid client
+	///
+	async fn get_userinfo_from_oidc(&self, access_token: &str) -> Result<Option<Userinfo>, Error> {
 		let client = Client::new();
 		let res = client
 			.get(self.userinfo_url.as_str())
@@ -98,6 +146,30 @@ impl ProviderOIDC {
 		let body = res.unwrap().json::<serde_json::Value>().await?;
 		Ok(Some(Userinfo {
 			data: body,
+			expires_at: None,
+		}))
+	}
+	///
+	/// Request the userinfo
+	///
+	async fn get_userinfo_from_access_token(
+		&self,
+		access_token: &str,
+	) -> Result<Option<Userinfo>, Error> {
+		let claims = self.jwt_decode(access_token);
+		if claims.is_none() {
+			return Ok(None);
+		}
+		let claims = claims.unwrap();
+
+		let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH);
+
+		let exp = claims["exp"].as_u64();
+		if exp.is_some() && exp.unwrap() <= now.unwrap().as_secs() {
+			return Ok(None);
+		}
+		Ok(Some(Userinfo {
+			data: claims,
 			expires_at: None,
 		}))
 	}
@@ -147,18 +219,6 @@ impl ProviderOIDC {
 		];
 		self.grant(&params).await
 	}
-}
-
-fn to_value(obj: &serde_json::Value, key: &str) -> Option<serde_json::Value> {
-	let value = obj.get(key);
-	if value.is_none() {
-		return None;
-	}
-	let value = value.unwrap();
-	if let serde_json::Value::Null = value {
-		return None;
-	}
-	Some(value.clone())
 }
 
 impl Provider for ProviderOIDC {
