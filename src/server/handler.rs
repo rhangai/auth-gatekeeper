@@ -157,6 +157,9 @@ async fn route_refresh(data: web::Data<Data>, req: HttpRequest) -> Result<impl R
 	let userinfo = session.get_userinfo();
 	if let Some(userinfo) = userinfo {
 		let mut data: HashMap<&str, &JsonValue> = HashMap::new();
+		if let Some(ref user_sub) = userinfo.data.get("sub") {
+			data.insert("sub", user_sub);
+		}
 		if let Some(ref user_email) = userinfo.data.get("email") {
 			data.insert("email", user_email);
 		}
