@@ -2,7 +2,9 @@
   "name": "@rhangai/auth-gatekeeper",
   "version": "1.0.0",
   "private": true,
-  "scripts": {
-    "postbump": "./scripts/postbump.sh"
+  "standard-version": {
+    "scripts": {
+      "prebump": "./scripts/postbump.sh"
+    }
   }
 }
