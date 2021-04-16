@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.1.0](https://github.com/rhangai/auth-gatekeeper/compare/v1.0.0...v1.1.0) (2021-04-16)
+
+
+### Features
+
+* Added new claims to the refresh token ([1bfe3cd](https://github.com/rhangai/auth-gatekeeper/commit/1bfe3cd24d85bea545225e86b6f0e6e9a0850821))
+
 ## 1.0.0 (2021-02-07)
 
 
