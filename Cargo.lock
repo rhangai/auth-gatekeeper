@@ -321,7 +321,7 @@ dependencies = [
 
 [[package]]
 name = "auth-gatekeeper"
-version = "1.0.0"
+version = "0.0.0"
 dependencies = [
  "actix-web",
  "base64 0.13.0",

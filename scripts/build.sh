@@ -5,7 +5,7 @@ SCRIPT_DIR=$(dirname "$SCRIPT_FILE")
 ROOT_DIR=$(dirname "$SCRIPT_DIR")
 
 cd "$ROOT_DIR"
-VERSION=$(cat package.json | jq -r ".version")
+VERSION=$(cat Cargo.toml | grep -P "^version = " | tr -d '[:space:]' | tr -d '"' | cut -d "=" -f 2)
 VERSION_MAJOR=$(echo "$VERSION" | cut -d '.' -f 1)
 VERSION_MINOR=$(echo "$VERSION" | cut -d '.' -f 2)
 VERSION_SHORT="${VERSION_MAJOR}.${VERSION_MINOR}"
