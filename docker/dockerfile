@@ -1,4 +1,4 @@
-FROM traefik as traefik
+FROM traefik:2.4 as traefik
 
 FROM rhangai/auth-gatekeeper:bin
 RUN apt-get update && \ 

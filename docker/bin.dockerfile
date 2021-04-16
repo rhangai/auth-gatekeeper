@@ -1,4 +1,4 @@
-FROM rust:1.49 as builder
+FROM rust:1.51 as builder
 WORKDIR /opt/auth-gatekeeper
 ADD ./Cargo.toml ./Cargo.lock /opt/auth-gatekeeper/
 RUN cargo fetch --locked && \
