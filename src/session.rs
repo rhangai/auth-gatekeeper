@@ -2,7 +2,8 @@ use super::error::Error;
 use super::provider::{TokenSet, Userinfo};
 use super::server::data::Data;
 use actix_web::{
-	cookie, dev::HttpResponseBuilder, http::StatusCode, web, HttpMessage, HttpRequest,
+	cookie, dev::HttpResponseBuilder, http::header::AUTHORIZATION, http::StatusCode, web,
+	HttpMessage, HttpRequest,
 };
 
 #[derive(Clone)]
@@ -60,7 +61,10 @@ impl Session {
 	}
 
 	pub fn from_request(data: web::Data<Data>, req: &HttpRequest) -> Self {
-		let token_set = Self::request_get_token_set(&data, &req);
+		let mut token_set = Self::request_get_token_set_from_cookies(&data, &req);
+		if token_set.is_none() {
+			token_set = Self::request_get_token_set_from_authorization(&data, &req);
+		}
 		let has_session = token_set.is_some();
 		Self {
 			data: data,
@@ -72,7 +76,10 @@ impl Session {
 	}
 
 	/// Get the token set from the request
-	fn request_get_token_set(data: &web::Data<Data>, req: &HttpRequest) -> Option<SessionTokenSet> {
+	fn request_get_token_set_from_cookies(
+		data: &web::Data<Data>,
+		req: &HttpRequest,
+	) -> Option<SessionTokenSet> {
 		let cookies_result = req.cookies();
 		if cookies_result.is_err() {
 			return None;
@@ -107,6 +114,45 @@ impl Session {
 		return Some(SessionTokenSet {
 			access_token: access_token,
 			refresh_token: refresh_token,
+		});
+	}
+
+	/// Get the token set from the request
+	fn request_get_token_set_from_authorization(
+		_data: &web::Data<Data>,
+		req: &HttpRequest,
+	) -> Option<SessionTokenSet> {
+		let auth = req.headers().get(AUTHORIZATION);
+		if auth.is_none() {
+			return None;
+		}
+		let auth_value_result = auth.unwrap().to_str();
+		if auth_value_result.is_err() {
+			return None;
+		}
+
+		let auth_value = auth_value_result.unwrap();
+
+		if auth_value.len() < 7 {
+			return None;
+		}
+		if &auth_value[..7].to_lowercase() != "bearer " {
+			return None;
+		}
+
+		let tokens_split = auth_value[7..].split("|");
+		let tokens: Vec<&str> = tokens_split.collect();
+		if tokens.len() == 0 {
+			return None;
+		} else if tokens.len() == 1 {
+			return Some(SessionTokenSet {
+				access_token: Some(tokens[0].into()),
+				refresh_token: None,
+			});
+		}
+		return Some(SessionTokenSet {
+			access_token: Some(tokens[0].into()),
+			refresh_token: Some(tokens[1].into()),
 		});
 	}
 
