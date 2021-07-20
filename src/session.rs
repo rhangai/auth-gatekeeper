@@ -159,7 +159,10 @@ impl Session {
 	///
 	/// Check if any api calls are necessary
 	///
-	async fn api_id_token(&self, cookies: &mut Vec<cookie::Cookie<'static>>) -> Result<(), Error> {
+	async fn api_id_token<'a>(
+		&self,
+		cookies: &'a mut Option<Vec<cookie::Cookie<'static>>>,
+	) -> Result<(), Error> {
 		if let Some(ref id_token) = self.id_token {
 			let id_token = self.data.jwt.encode_value(id_token)?;
 			self.data.api.on_id_token(cookies, &id_token).await?;
@@ -170,7 +173,10 @@ impl Session {
 	///
 	/// Check if any api calls are necessary
 	///
-	async fn api_logout(&self, cookies: &mut Vec<cookie::Cookie<'static>>) -> Result<(), Error> {
+	async fn api_logout<'a>(
+		&self,
+		cookies: &'a mut Option<Vec<cookie::Cookie<'static>>>,
+	) -> Result<(), Error> {
 		self.data.api.on_logout(cookies).await?;
 		Ok(())
 	}
@@ -247,8 +253,14 @@ impl Session {
 		builder: &mut HttpResponseBuilder,
 		flags: SessionFlags,
 	) -> Result<(), Error> {
+		let need_cookies =
+			flags.contains(SessionFlags::FORWARD_AUTH) || flags.contains(SessionFlags::COOKIES);
 		let mut flags = flags;
-		let mut cookies: Vec<cookie::Cookie<'static>> = Vec::new();
+		let mut cookies: Option<Vec<cookie::Cookie<'static>>> = if need_cookies {
+			Some(Vec::with_capacity(4))
+		} else {
+			None
+		};
 		match self.status {
 			SessionStatus::Invalid => {
 				if self.has_session {
@@ -284,16 +296,18 @@ impl Session {
 				self.response_set_userinfo(builder, &userinfo, flags)?;
 			}
 		}
-		if flags.contains(SessionFlags::X_AUTH_HEADERS) {
-			let mut i = 1;
-			for cookie in &cookies {
-				builder.header(&format!("x-auth-set-cookie-{}", i), cookie.to_string());
-				i += 1;
+		if let Some(cookies) = cookies {
+			if flags.contains(SessionFlags::X_AUTH_HEADERS) {
+				let mut i = 1;
+				for cookie in &cookies {
+					builder.header(&format!("x-auth-set-cookie-{}", i), cookie.to_string());
+					i += 1;
+				}
 			}
-		}
-		if flags.contains(SessionFlags::COOKIES) {
-			for cookie in cookies {
-				builder.cookie(cookie);
+			if flags.contains(SessionFlags::COOKIES) {
+				for cookie in cookies {
+					builder.cookie(cookie);
+				}
 			}
 		}
 		Ok(())
@@ -346,11 +360,16 @@ impl Session {
 	///
 	/// When the session doesn't have a session token
 	///
-	fn response_save_session(
+	fn response_save_session<'a>(
 		&self,
-		cookies: &mut Vec<cookie::Cookie<'static>>,
+		cookies: &'a mut Option<Vec<cookie::Cookie<'static>>>,
 		token_set: Option<SessionTokenSet>,
 	) -> Result<(), Error> {
+		if cookies.is_none() {
+			return Ok(());
+		}
+
+		let cookies = cookies.as_mut().unwrap();
 		// If the token is not set, then clear the session
 		if token_set.is_none() {
 			let cookie_access_token_name = self.data.settings.cookie.access_token_name.clone();

@@ -30,9 +30,9 @@ impl Api {
 	///
 	/// When a new ID token is received
 	///
-	pub async fn on_id_token(
+	pub async fn on_id_token<'a>(
 		&self,
-		cookies: &mut Vec<cookie::Cookie<'static>>,
+		cookies: &'a mut Option<Vec<cookie::Cookie<'static>>>,
 		value: &JsonValue,
 	) -> Result<(), Error> {
 		self.request_endpoint(cookies, &self.id_token_endpoint, || {
@@ -45,14 +45,17 @@ impl Api {
 	///
 	/// Perform a logout request
 	///
-	pub async fn on_logout(&self, cookies: &mut Vec<cookie::Cookie<'static>>) -> Result<(), Error> {
+	pub async fn on_logout<'a>(
+		&self,
+		cookies: &'a mut Option<Vec<cookie::Cookie<'static>>>,
+	) -> Result<(), Error> {
 		self.request_endpoint(cookies, &self.logout_endpoint, || None as Option<()>)
 			.await
 	}
 
-	async fn request_endpoint<T, F>(
+	async fn request_endpoint<'a, T, F>(
 		&self,
-		cookies: &mut Vec<cookie::Cookie<'static>>,
+		cookies: &'a mut Option<Vec<cookie::Cookie<'static>>>,
 		endpoint: &Option<Url>,
 		data_fn: F,
 	) -> Result<(), Error>
@@ -75,16 +78,17 @@ impl Api {
 				return Err(Error::ApiError);
 			}
 
-			let set_cookie = response.headers().get_all("set-cookie");
-
-			for cookie_value in set_cookie {
-				if let Ok(cookie_str) = cookie_value.to_str() {
-					let cookie = cookie::Cookie::parse(cookie_str);
-					if cookie.is_err() {
-						continue;
+			if let Some(ref mut cookies) = cookies {
+				let set_cookie = response.headers().get_all("set-cookie");
+				for cookie_value in set_cookie {
+					if let Ok(cookie_str) = cookie_value.to_str() {
+						let cookie = cookie::Cookie::parse(cookie_str);
+						if cookie.is_err() {
+							continue;
+						}
+						let cookie = cookie.unwrap();
+						cookies.push(cookie.into_owned());
 					}
-					let cookie = cookie.unwrap();
-					cookies.push(cookie.into_owned());
 				}
 			}
 		}
