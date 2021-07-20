@@ -21,6 +21,7 @@ enum SessionStatus {
 
 bitflags! {
 	pub struct SessionFlags: u8 {
+		const NONE                  = 0x00;
 		const X_AUTH_HEADERS        = 0x01;
 		const COOKIES               = 0x02;
 		const FORWARD_AUTH          = 0x04;
@@ -311,6 +312,24 @@ impl Session {
 			}
 		}
 		Ok(())
+	}
+
+	///
+	/// Save the userinfo
+	///
+	pub fn response_authorization_token(&self) -> Option<String> {
+		if let Some(ref token_set) = self.token_set {
+			if token_set.access_token.is_none() {
+				return None;
+			}
+			let access_token = token_set.access_token.as_ref().unwrap();
+			if let Some(ref refresh_token) = token_set.refresh_token {
+				return Some(format!("{}:{}", access_token, refresh_token));
+			} else {
+				return Some(access_token.into());
+			}
+		}
+		None
 	}
 	///
 	/// GEt the redirect uri from forward auth

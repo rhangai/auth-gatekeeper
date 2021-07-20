@@ -6,7 +6,7 @@ use crate::settings::Settings;
 use crate::util::crypto;
 use crate::util::jwt::JsonValue;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Deserialize)]
@@ -35,6 +35,11 @@ struct AuthLoginForm {
 #[derive(Deserialize)]
 struct AuthForwardAuthQuery {
 	redirect: Option<String>,
+}
+
+#[derive(Serialize)]
+struct AuthForwardLoginResponse {
+	authorization: Option<String>,
 }
 
 ///
@@ -213,6 +218,34 @@ async fn route_forward_auth(
 }
 
 ///
+/// Login direct api
+///
+async fn route_post_auth_login(
+	data: web::Data<Data>,
+	req: HttpRequest,
+	form: web::Form<AuthLoginForm>,
+) -> Result<impl Responder, Error> {
+	// Perform the grant
+	let token_set = data
+		.provider
+		.grant_password(&form.username, &form.password)
+		.await?;
+	if token_set.is_none() {
+		return Ok(HttpResponse::Unauthorized().finish());
+	}
+
+	// Create the response and post t
+	let mut builder = HttpResponse::Ok();
+	let session = Session::new(data.clone(), token_set.unwrap());
+	session
+		.response(&req, &mut builder, SessionFlags::NONE)
+		.await?;
+	Ok(builder.json(AuthForwardLoginResponse {
+		authorization: session.response_authorization_token(),
+	}))
+}
+
+///
 /// Helper struct to create the routes and setup the service
 ///
 pub struct Handler {
@@ -243,7 +276,8 @@ impl Handler {
 			.route("/auth/callback", web::get().to(route_callback))
 			.route("/auth/refresh", web::get().to(route_refresh))
 			.route("/auth/validate", web::get().to(route_validate))
-			.route("/auth/forward-auth", web::get().to(route_forward_auth));
+			.route("/auth/forward-auth", web::get().to(route_forward_auth))
+			.route("/auth/login", web::post().to(route_post_auth_login));
 		Ok(())
 	}
 }
