@@ -1,0 +1,7 @@
+{
+  "name": "Rust container",
+  "dockerFile": "dockerfile",
+  "settings": {
+    "terminal.integrated.shell.linux": "/bin/bash"
+  }
+}
