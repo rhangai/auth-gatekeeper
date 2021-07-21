@@ -9,8 +9,14 @@
     etag = ""
     last-modified = ""
     cache-control = "no-cache, no-store, must-revalidate"
+  [http.middlewares.auth-cors.headers]
+    accessControlAllowMethods = ["GET", "OPTIONS", "PUT"]
+    accessControlAllowHeaders = ["authorization", "accept", "content-type"]
+    accessControlAllowOriginList = "*"
+    accessControlMaxAge = 3600
+    addVaryHeader = true
   [http.middlewares.auth.chain]
-    middlewares = ["auth-internal-forward", "auth-internal-cache"]
+    middlewares = [{{if .Env.AUTH_GATEKEEPER_CORS}} "auth-cors", {{end}} "auth-internal-forward", "auth-internal-cache"]
   [http.middlewares.auth-redirect.chain]
     middlewares = ["auth-internal-forward-redirect", "auth-internal-cache"]
 
@@ -19,6 +25,7 @@
     rule = "Path(`/login`) || Path(`/logout`) || Path(`/auth/callback`) || Path(`/auth/refresh`) || Path(`/auth/login/json`)"
     service = "auth"
     priority = 9999
+    {{if .Env.AUTH_GATEKEEPER_CORS}} middlewares = ["auth-cors"] {{end}}
 
 [http.services]
   [http.services.auth.loadBalancer]
