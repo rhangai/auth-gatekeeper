@@ -1,10 +1,13 @@
 FROM traefik:2.4 as traefik
+FROM rhangai/auth-gatekeeper:bin as auth-gatekeeper-bin
 
-FROM rhangai/auth-gatekeeper:bin
+FROM debian:buster-slim
 RUN apt-get update && \ 
-	apt-get install -y curl supervisor && \
-	rm -rf /var/lib/apt/lists/*
+	apt-get install -y openssl curl supervisor  && \
+	rm -rf /var/lib/apt/lists/* && \
+	ln -s /opt/auth-gatekeeper/auth-gatekeeper /usr/local/bin/auth-gatekeeper
 
+COPY --from=auth-gatekeeper-bin /opt/auth-gatekeeper/auth-gatekeeper /opt/auth-gatekeeper/auth-gatekeeper
 COPY --from=traefik /usr/local/bin/traefik /usr/local/bin/traefik
 ADD ./docker/etc /etc
 COPY ./docker/scripts/docker-entrypoint.sh /docker-entrypoint.sh

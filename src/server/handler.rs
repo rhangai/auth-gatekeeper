@@ -1,13 +1,11 @@
 use super::data::Data;
 use super::state::State;
 use crate::error::Error;
-use crate::session::{Session, SessionFlags};
+use crate::session::{Session, SessionAuthMethod, SessionFlags};
 use crate::settings::Settings;
 use crate::util::crypto;
-use crate::util::jwt::JsonValue;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 #[derive(Deserialize)]
 struct LoginQuery {
@@ -159,27 +157,12 @@ async fn route_refresh(data: web::Data<Data>, req: HttpRequest) -> Result<impl R
 		.response(&req, &mut builder, SessionFlags::COOKIES)
 		.await?;
 
-	let userinfo = session.get_userinfo();
-	if let Some(userinfo) = userinfo {
-		let mut data: HashMap<&str, &JsonValue> = HashMap::new();
-		if let Some(ref user_sub) = userinfo.data.get("sub") {
-			data.insert("sub", user_sub);
-		}
-		if let Some(ref user_email) = userinfo.data.get("email") {
-			data.insert("email", user_email);
-		}
-		if let Some(ref user_name) = userinfo.data.get("name") {
-			data.insert("name", user_name);
-		}
-		if let Some(ref user_realm_access) = userinfo.data.get("realm_access") {
-			if let Some(ref user_roles) = user_realm_access.get("roles") {
-				data.insert("roles", user_roles);
-			}
-		}
-		Ok(builder.json(data))
+	let need_authorization = if session.is_auth_method(SessionAuthMethod::Cookie) {
+		Some(false)
 	} else {
-		Ok(builder.finish())
-	}
+		None
+	};
+	session.response_json(&mut builder, need_authorization)
 }
 
 ///
@@ -218,12 +201,12 @@ async fn route_forward_auth(
 }
 
 ///
-/// Login direct api
+/// Json login
 ///
-async fn route_post_auth_login(
+async fn route_post_auth_login_json(
 	data: web::Data<Data>,
 	req: HttpRequest,
-	form: web::Form<AuthLoginForm>,
+	form: web::Json<AuthLoginForm>,
 ) -> Result<impl Responder, Error> {
 	// Perform the grant
 	let token_set = data
@@ -236,13 +219,12 @@ async fn route_post_auth_login(
 
 	// Create the response and post t
 	let mut builder = HttpResponse::Ok();
-	let session = Session::new(data.clone(), token_set.unwrap());
+	let mut session = Session::new(data.clone(), token_set.unwrap());
+	session.validate(false).await?;
 	session
-		.response(&req, &mut builder, SessionFlags::NONE)
+		.response(&req, &mut builder, SessionFlags::COOKIES)
 		.await?;
-	Ok(builder.json(AuthForwardLoginResponse {
-		authorization: session.response_authorization_token()?,
-	}))
+	session.response_json(&mut builder, Some(true))
 }
 
 ///
@@ -277,7 +259,10 @@ impl Handler {
 			.route("/auth/refresh", web::get().to(route_refresh))
 			.route("/auth/validate", web::get().to(route_validate))
 			.route("/auth/forward-auth", web::get().to(route_forward_auth))
-			.route("/auth/login", web::post().to(route_post_auth_login));
+			.route(
+				"/auth/login/json",
+				web::post().to(route_post_auth_login_json),
+			);
 		Ok(())
 	}
 }

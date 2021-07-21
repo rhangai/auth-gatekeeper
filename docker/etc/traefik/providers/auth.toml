@@ -16,7 +16,7 @@
 
 [http.routers]
   [http.routers.auth-routes]
-    rule = "Path(`/login`) || Path(`/logout`) || Path(`/auth/callback`) || Path(`/auth/refresh`) || Path(`/auth/login`)"
+    rule = "Path(`/login`) || Path(`/logout`) || Path(`/auth/callback`) || Path(`/auth/refresh`) || Path(`/auth/login/json`)"
     service = "auth"
     priority = 9999
 

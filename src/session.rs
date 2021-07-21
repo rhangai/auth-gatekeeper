@@ -1,10 +1,12 @@
 use super::error::Error;
 use super::provider::{TokenSet, Userinfo};
 use super::server::data::Data;
+use crate::util::jwt::JsonValue;
 use actix_web::{
 	cookie, dev::HttpResponseBuilder, http::header::AUTHORIZATION, http::StatusCode, web,
-	HttpMessage, HttpRequest,
+	HttpMessage, HttpRequest, HttpResponse,
 };
+use std::collections::HashMap;
 
 #[derive(Clone)]
 struct SessionTokenSet {
@@ -17,6 +19,12 @@ enum SessionStatus {
 	New(Option<Userinfo>),
 	Logged(Option<Userinfo>),
 	Logout,
+}
+
+#[derive(PartialEq)]
+pub enum SessionAuthMethod {
+	Cookie,
+	AuthorizationToken,
 }
 
 bitflags! {
@@ -33,6 +41,7 @@ pub struct Session {
 	data: web::Data<Data>,
 	status: SessionStatus,
 	has_session: bool,
+	auth_method: Option<SessionAuthMethod>,
 	token_set: Option<SessionTokenSet>,
 	id_token: Option<serde_json::Value>,
 }
@@ -41,6 +50,7 @@ impl Session {
 	pub fn new(data: web::Data<Data>, token_set: TokenSet) -> Self {
 		Self {
 			data: data,
+			auth_method: None,
 			status: SessionStatus::New(None),
 			token_set: Some(SessionTokenSet {
 				access_token: Some(token_set.access_token),
@@ -54,6 +64,7 @@ impl Session {
 	pub fn logout(data: web::Data<Data>) -> Self {
 		Self {
 			data: data,
+			auth_method: None,
 			status: SessionStatus::Logout,
 			token_set: None,
 			has_session: true,
@@ -62,15 +73,22 @@ impl Session {
 	}
 
 	pub fn from_request(data: web::Data<Data>, req: &HttpRequest) -> Self {
-		let mut token_set = Self::request_get_token_set_from_cookies(&data, &req);
-		if token_set.is_none() {
-			token_set = Self::request_get_token_set_from_authorization(&data, &req);
-		}
-		let has_session = token_set.is_some();
+		let token_pair = None
+			.or_else(|| {
+				Self::request_get_token_set_from_cookies(&data, &req)
+					.map(|v| (Some(v), Some(SessionAuthMethod::Cookie)))
+			})
+			.or_else(|| {
+				Self::request_get_token_set_from_authorization(&data, &req)
+					.map(|v| (Some(v), Some(SessionAuthMethod::AuthorizationToken)))
+			});
+		let has_session = token_pair.is_some();
+		let (token_set, auth_method) = token_pair.unwrap_or((None, None));
 		Self {
 			data: data,
 			status: SessionStatus::Invalid,
-			token_set: token_set,
+			token_set,
+			auth_method,
 			has_session: has_session,
 			id_token: None,
 		}
@@ -120,7 +138,7 @@ impl Session {
 
 	/// Get the token set from the request
 	fn request_get_token_set_from_authorization(
-		_data: &web::Data<Data>,
+		data: &web::Data<Data>,
 		req: &HttpRequest,
 	) -> Option<SessionTokenSet> {
 		let auth = req.headers().get(AUTHORIZATION);
@@ -147,13 +165,13 @@ impl Session {
 			return None;
 		} else if tokens.len() == 1 {
 			return Some(SessionTokenSet {
-				access_token: Some(tokens[0].into()),
+				access_token: data.crypto.decrypt(tokens[0]).ok(),
 				refresh_token: None,
 			});
 		}
 		return Some(SessionTokenSet {
-			access_token: Some(tokens[0].into()),
-			refresh_token: Some(tokens[1].into()),
+			access_token: data.crypto.decrypt(tokens[0]).ok(),
+			refresh_token: data.crypto.decrypt(tokens[1]).ok(),
 		});
 	}
 
@@ -180,6 +198,16 @@ impl Session {
 	) -> Result<(), Error> {
 		self.data.api.on_logout(cookies).await?;
 		Ok(())
+	}
+
+	///
+	/// Check if the auth method matches
+	///
+	pub fn is_auth_method(&self, method: SessionAuthMethod) -> bool {
+		match &self.auth_method {
+			Some(m) => *m == method,
+			None => false,
+		}
 	}
 
 	///
@@ -317,23 +345,72 @@ impl Session {
 	///
 	/// Save the userinfo
 	///
-	pub fn response_authorization_token(&self) -> Result<Option<String>, Error> {
-		if let Some(ref token_set) = self.token_set {
-			if token_set.access_token.is_none() {
-				return Ok(None);
+	pub fn response_authorization_token(
+		&self,
+		need_authorization: Option<bool>,
+	) -> Result<Option<String>, Error> {
+		let need_authorization = need_authorization.unwrap_or_else(|| match self.status {
+			SessionStatus::Invalid => false,
+			SessionStatus::Logout => false,
+			SessionStatus::Logged(ref _userinfo) => false,
+			SessionStatus::New(ref _userinfo) => true,
+		});
+
+		if !need_authorization || self.token_set.is_none() {
+			return Ok(None);
+		}
+
+		let token_set = self.token_set.as_ref().unwrap();
+		if token_set.access_token.is_none() {
+			return Ok(None);
+		}
+		let access_token = self
+			.data
+			.crypto
+			.encrypt(token_set.access_token.as_ref().unwrap())?;
+		if let Some(ref refresh_token) = token_set.refresh_token {
+			let refresh_token = self.data.crypto.encrypt(refresh_token)?;
+			return Ok(Some(format!("{}|{}", access_token, refresh_token)));
+		} else {
+			return Ok(Some(access_token));
+		}
+	}
+
+	///
+	/// Create a json response
+	///
+	pub fn response_json(
+		&self,
+		builder: &mut HttpResponseBuilder,
+		need_authorization: Option<bool>,
+	) -> Result<HttpResponse, Error> {
+		let mut data: HashMap<&str, &JsonValue> = HashMap::with_capacity(5);
+		if let Some(userinfo) = self.get_userinfo() {
+			if let Some(ref user_sub) = userinfo.data.get("sub") {
+				data.insert("sub", user_sub);
 			}
-			let access_token = self
-				.data
-				.crypto
-				.encrypt(token_set.access_token.as_ref().unwrap())?;
-			if let Some(ref refresh_token) = token_set.refresh_token {
-				let refresh_token = self.data.crypto.encrypt(refresh_token)?;
-				return Ok(Some(format!("{}|{}", access_token, refresh_token)));
-			} else {
-				return Ok(Some(access_token));
+			if let Some(ref user_email) = userinfo.data.get("email") {
+				data.insert("email", user_email);
+			}
+			if let Some(ref user_name) = userinfo.data.get("name") {
+				data.insert("name", user_name);
+			}
+			if let Some(ref user_realm_access) = userinfo.data.get("realm_access") {
+				if let Some(ref user_roles) = user_realm_access.get("roles") {
+					data.insert("roles", user_roles);
+				}
 			}
 		}
-		Ok(None)
+
+		let authorization_value: JsonValue;
+		let authorization = self
+			.response_authorization_token(need_authorization)
+			.unwrap_or(None);
+		if let Some(authorization) = authorization {
+			authorization_value = JsonValue::String(authorization);
+			data.insert("authorization", &authorization_value);
+		}
+		Ok(builder.json(data))
 	}
 	///
 	/// GEt the redirect uri from forward auth
