@@ -197,6 +197,7 @@ impl ProviderOIDC {
 	) -> Result<Option<TokenSet>, Error> {
 		let params = [
 			("grant_type", "password"),
+			("scope", &self.scope),
 			("client_id", &self.client_id),
 			("client_secret", &self.client_secret),
 			("username", username),

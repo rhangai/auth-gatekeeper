@@ -241,7 +241,7 @@ async fn route_post_auth_login(
 		.response(&req, &mut builder, SessionFlags::NONE)
 		.await?;
 	Ok(builder.json(AuthForwardLoginResponse {
-		authorization: session.response_authorization_token(),
+		authorization: session.response_authorization_token()?,
 	}))
 }
 

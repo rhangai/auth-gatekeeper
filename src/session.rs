@@ -317,19 +317,23 @@ impl Session {
 	///
 	/// Save the userinfo
 	///
-	pub fn response_authorization_token(&self) -> Option<String> {
+	pub fn response_authorization_token(&self) -> Result<Option<String>, Error> {
 		if let Some(ref token_set) = self.token_set {
 			if token_set.access_token.is_none() {
-				return None;
+				return Ok(None);
 			}
-			let access_token = token_set.access_token.as_ref().unwrap();
+			let access_token = self
+				.data
+				.crypto
+				.encrypt(token_set.access_token.as_ref().unwrap())?;
 			if let Some(ref refresh_token) = token_set.refresh_token {
-				return Some(format!("{}:{}", access_token, refresh_token));
+				let refresh_token = self.data.crypto.encrypt(refresh_token)?;
+				return Ok(Some(format!("{}|{}", access_token, refresh_token)));
 			} else {
-				return Some(access_token.into());
+				return Ok(Some(access_token));
 			}
 		}
-		None
+		Ok(None)
 	}
 	///
 	/// GEt the redirect uri from forward auth
