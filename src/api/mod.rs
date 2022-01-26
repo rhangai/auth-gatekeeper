@@ -1,7 +1,7 @@
 use crate::error::Error;
 use crate::settings::Settings;
 use crate::util::jwt::JsonValue;
-use actix_web::{client::Client, cookie};
+use actix_web::{client::Client, client::ClientBuilder, cookie};
 use serde::Serialize;
 use std::collections::HashMap;
 use url::Url;
@@ -22,7 +22,7 @@ impl Api {
 		let logout_endpoint = parse_url(&settings.api.logout_endpoint)?;
 
 		Ok(Self {
-			client: Client::new(),
+			client: ClientBuilder::new().timeout(std::time::Duration::new(30, 0)).finish(),
 			id_token_endpoint: id_token_endpoint,
 			logout_endpoint: logout_endpoint,
 		})

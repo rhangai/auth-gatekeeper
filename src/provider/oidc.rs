@@ -2,7 +2,7 @@ use super::base::{Provider, TokenSet, Userinfo};
 use crate::error::Error;
 use crate::settings::Settings;
 use crate::util::jwt::JsonValue;
-use actix_web::{client::Client, ResponseError};
+use actix_web::{client::ClientBuilder, ResponseError};
 use std::time::SystemTime;
 use url::Url;
 
@@ -94,7 +94,7 @@ impl ProviderOIDC {
 		&self,
 		form: &T,
 	) -> Result<Option<TokenSet>, Error> {
-		let client = Client::new();
+		let client = ClientBuilder::new().timeout(std::time::Duration::new(30, 0)).finish();
 		let mut res = client
 			.post(self.token_url.as_str())
 			.send_form(&form)
@@ -127,7 +127,7 @@ impl ProviderOIDC {
 	/// Request the userinfo using openid client
 	///
 	async fn get_userinfo_from_oidc(&self, access_token: &str) -> Result<Option<Userinfo>, Error> {
-		let client = Client::new();
+		let client = ClientBuilder::new().timeout(std::time::Duration::new(30, 0)).finish();
 		let res = client
 			.get(self.userinfo_url.as_str())
 			.header("authorization", format!("Bearer {}", access_token))
