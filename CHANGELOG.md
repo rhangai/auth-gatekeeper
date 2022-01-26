@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.3.0](https://github.com/rhangai/auth-gatekeeper/compare/v1.2.0...v1.3.0) (2022-01-26)
+
 ## [1.2.0](https://github.com/rhangai/auth-gatekeeper/compare/v1.1.0...v1.2.0) (2021-07-21)
 
 ## [1.1.0](https://github.com/rhangai/auth-gatekeeper/compare/v1.0.0...v1.1.0) (2021-04-16)
